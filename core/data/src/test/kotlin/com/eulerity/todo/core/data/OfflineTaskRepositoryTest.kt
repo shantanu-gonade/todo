@@ -1,0 +1,84 @@
+package com.eulerity.todo.core.data
+
+import app.cash.turbine.test
+import com.eulerity.todo.core.common.FakeClock
+import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDate
+import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+class OfflineTaskRepositoryTest {
+
+    /**
+     * THE headline test. Proves the today-only constraint works end-to-end:
+     * a task added today is present in observeTodaysTasks() and absent after
+     * the day rolls over, then appears in observeExpiredTasks().
+     */
+    @Test
+    fun `a task added today disappears from today and appears in history tomorrow`() = runTest {
+        val dao = FakeTaskDao()
+        val dateTimeProvider = FakeDateTimeProvider(FakeClock(LocalDate(2026, 5, 14)))
+        val repo = OfflineTaskRepository(dao, dateTimeProvider)
+
+        repo.addTask("ship the build", expiryTime = null)
+
+        repo.observeTodaysTasks().test {
+            assertEquals(1, awaitItem().size)   // present today
+            dateTimeProvider.rollToNextDay()    // simulate midnight
+            assertTrue(awaitItem().isEmpty())   // gone from "today"
+            cancelAndConsumeRemainingEvents()
+        }
+
+        repo.observeExpiredTasks().test {
+            assertEquals(1, awaitItem().size)   // now in history
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setCompleted toggles the completion flag`() = runTest {
+        val dao = FakeTaskDao()
+        val dateTimeProvider = FakeDateTimeProvider(FakeClock(LocalDate(2026, 5, 14)))
+        val repo = OfflineTaskRepository(dao, dateTimeProvider)
+
+        repo.addTask("buy milk", expiryTime = null)
+
+        var taskId: String? = null
+        repo.observeTodaysTasks().test {
+            val tasks = awaitItem()
+            assertEquals(1, tasks.size)
+            taskId = tasks.first().id
+            cancelAndConsumeRemainingEvents()
+        }
+
+        repo.setCompleted(taskId!!, true)
+
+        repo.observeTodaysTasks().test {
+            assertTrue(awaitItem().first().isCompleted)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `deleteTask removes the task`() = runTest {
+        val dao = FakeTaskDao()
+        val dateTimeProvider = FakeDateTimeProvider(FakeClock(LocalDate(2026, 5, 14)))
+        val repo = OfflineTaskRepository(dao, dateTimeProvider)
+
+        repo.addTask("to delete", expiryTime = null)
+
+        var taskId: String? = null
+        repo.observeTodaysTasks().test {
+            taskId = awaitItem().first().id
+            cancelAndConsumeRemainingEvents()
+        }
+
+        repo.deleteTask(taskId!!)
+
+        repo.observeTodaysTasks().test {
+            assertTrue(awaitItem().isEmpty())
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+}
