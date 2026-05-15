@@ -1,4 +1,5 @@
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google {
             content {
@@ -21,4 +22,15 @@ dependencyResolutionManagement {
 
 rootProject.name = "todo"
 include(":app")
- 
+include(":core")
+include(":core:model")
+include(":core:common")
+include(":core:database")
+include(":core:datastore")
+include(":core:data")
+include(":core:domain")
+include(":core:designsystem")
+include(":core:ui")
+include(":feature")
+include(":feature:today")
+include(":feature:history")

@@ -1,15 +1,64 @@
+# ============================================================
+# Android / Gradle build artifacts
+# ============================================================
+
+# Build outputs (all modules)
+**/build/
+/build/
+
+# Gradle wrapper cache & daemon files
+.gradle/
+**/.gradle/
+
+# Local developer machine properties (SDK path, signing keys)
+local.properties
+
+# IntelliJ / Android Studio
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
+/.idea/caches/
+/.idea/libraries/
 /.idea/modules.xml
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+/.idea/deploymentTargetSelector.xml
+/.idea/deviceManager.xml
+/.idea/caches/
+/.idea/shelf/
+
+# Native build files
+.externalNativeBuild/
+.cxx/
+
+# Profiling / captures
+/captures/
+
+# macOS
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+**/.DS_Store
+
+# Keystore / signing (never commit credentials)
+*.jks
+*.keystore
+keystore.properties
+
+# Room schema diffs generated during CI (keep schemas themselves)
+# Uncomment if you store schemas in git:
+# !**/schemas/
+
+# Kotlin build helpers
+kotlin-js-store/
+
+# Android Lint
+lint-results*
+lint-report*
+*.sarif
+
+# Test result HTML reports
+**/build/reports/
+
+# Proguard mapping (keep for release builds if needed, optional)
+# mapping.txt
+
+# Generated sources (KSP / KAPT outputs committed only if checked in intentionally)
+**/generated/
