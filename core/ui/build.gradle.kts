@@ -7,4 +7,5 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:model"))
     implementation(libs.kotlinx.datetime)
+    implementation(libs.androidx.compose.material.icons.extended)
 }
