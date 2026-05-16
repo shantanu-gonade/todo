@@ -2,6 +2,7 @@ package com.eulerity.todo.feature.today
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eulerity.todo.core.common.DateTimeProvider
 import com.eulerity.todo.core.domain.AddTaskUseCase
 import com.eulerity.todo.core.domain.DeleteTaskUseCase
 import com.eulerity.todo.core.domain.ObserveTodaysTasksUseCase
@@ -18,6 +19,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import javax.inject.Inject
 
 /**
@@ -38,6 +41,7 @@ class TodayViewModel @Inject constructor(
     private val addTask: AddTaskUseCase,
     private val toggleCompletion: ToggleTaskCompletionUseCase,
     private val deleteTask: DeleteTaskUseCase,
+    private val dateTimeProvider: DateTimeProvider,
 ) : ViewModel() {
 
     /** Ephemeral UI-only state that does not live in the domain layer. */
@@ -57,8 +61,15 @@ class TodayViewModel @Inject constructor(
      */
     val uiState: StateFlow<TodayUiState> =
         combine(observeTodaysTasks(), localState) { tasks, local ->
+            val nowLocalTime = dateTimeProvider.now()
+                .toLocalDateTime(TimeZone.currentSystemDefault()).time
             TodayUiState(
-                tasks = tasks.map { it.asTaskUi() },   // Compose rule 6: pure mapper
+                tasks = tasks.map { task ->
+                    val expiry = task.expiryTime
+                    task.asTaskUi().copy(
+                        isExpired = expiry != null && !task.isCompleted && expiry < nowLocalTime
+                    )
+                },
                 isLoading = false,
                 addSheetVisible = local.addSheetVisible,
                 draftTitle = local.draftTitle,

@@ -1,8 +1,12 @@
 package com.eulerity.todo.core.data.notification
 
+import android.Manifest
+//noinspection SuspiciousImport
+import android.R
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.hilt.work.HiltWorker
@@ -29,6 +33,7 @@ class EndOfDayReminderWorker @AssistedInject constructor(
     private val dateTimeProvider: DateTimeProvider,
 ) : CoroutineWorker(appContext, params) {
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override suspend fun doWork(): Result {
         val today = dateTimeProvider.today()
         val tasks = taskDao.observeTasksForDate(today).first()
@@ -42,6 +47,7 @@ class EndOfDayReminderWorker @AssistedInject constructor(
         return Result.success()
     }
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     private fun postReminder(count: Int) {
         val ctx = applicationContext
         val launchIntent = ctx.packageManager
@@ -64,7 +70,7 @@ class EndOfDayReminderWorker @AssistedInject constructor(
         }
 
         val notification = NotificationCompat.Builder(ctx, REMINDER_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setSmallIcon(R.drawable.ic_popup_reminder)
             .setContentTitle("Don't forget your todos!")
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

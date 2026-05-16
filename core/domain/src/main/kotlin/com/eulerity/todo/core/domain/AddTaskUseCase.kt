@@ -20,9 +20,9 @@ class AddTaskUseCase @Inject constructor(
             val nowLocalTime = dateTimeProvider.now()
                 .toLocalDateTime(TimeZone.currentSystemDefault())
                 .time
-            if (expiryTime <= nowLocalTime) {
+            if (expiryTime < nowLocalTime) {
                 return Result.failure(
-                    IllegalArgumentException("Expiry time must be in the future"),
+                    IllegalArgumentException("Expiry time has already passed"),
                 )
             }
         }

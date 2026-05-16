@@ -6,17 +6,16 @@ import android.content.Context
 import android.os.Build
 import androidx.core.content.getSystemService
 
-internal const val REMINDER_CHANNEL_ID = "todo_daily_reminder"
+const val REMINDER_CHANNEL_ID = "todo_daily_reminder"
 
 /**
  * Creates the "Daily reminders" notification channel the first time it is called.
  * Safe to call on any API level and multiple times — the OS is idempotent for
  * channel creation.
  */
-internal object TodoNotificationChannel {
+object TodoNotificationChannel {
 
     fun ensure(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService<NotificationManager>() ?: return
         if (manager.getNotificationChannel(REMINDER_CHANNEL_ID) != null) return
 

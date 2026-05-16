@@ -11,6 +11,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
 import javax.inject.Singleton
 
 @Module
@@ -31,4 +33,12 @@ object DispatchersModule {
     @Provides
     @DefaultDispatcher
     fun defaultDispatcher(): CoroutineDispatcher = Dispatchers.Default
+
+    @Provides
+    @Singleton
+    fun provideClock(): Clock = Clock.System
+
+    @Provides
+    @Singleton
+    fun provideTimeZone(): TimeZone = TimeZone.currentSystemDefault()
 }

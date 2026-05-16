@@ -9,6 +9,11 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
             apply("todoapp.android.library")
             apply("todoapp.android.library.compose")
             apply("todoapp.android.hilt")
+            // Type-safe Navigation Compose routes (composable<RouteKey>) require the
+            // kotlinx serialization COMPILER plugin to generate serializers at build time.
+            // Without this, @Serializable classes on route keys throw SerializationException
+            // at runtime even though the annotation is present.
+            apply("org.jetbrains.kotlin.plugin.serialization")
         }
         dependencies {
             add("implementation", project(":core:ui"))
@@ -20,6 +25,10 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
             add("implementation", libs.findLibrary("androidx-lifecycle-viewmodel-compose").get())
             add("implementation", libs.findLibrary("hilt-navigation-compose").get())
             add("implementation", libs.findLibrary("androidx-navigation-compose").get())
+            // Required at runtime for Navigation Compose type-safe routes.
+            // The compiler plugin generates the serializers; this library provides
+            // the runtime that Navigation Compose calls when building the back stack.
+            add("implementation", libs.findLibrary("kotlinx-serialization-json").get())
             add("testImplementation", libs.findLibrary("junit").get())
             add("testImplementation", libs.findLibrary("turbine").get())
             add("testImplementation", libs.findLibrary("kotlinx-coroutines-test").get())

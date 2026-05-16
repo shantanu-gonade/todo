@@ -1,5 +1,6 @@
 package com.eulerity.todo.core.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
@@ -22,6 +23,7 @@ import com.eulerity.todo.core.designsystem.theme.TodoTheme
  * [key] is set to [TaskUi.id] so Compose can correctly animate insertions,
  * deletions, and reorders without re-composing the whole list.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TaskList(
     tasks: List<TaskUi>,
@@ -47,6 +49,7 @@ fun TaskList(
                 task = task,
                 onToggle = { checked -> onToggle(task.id, checked) },
                 onDelete = { onDelete(task.id) },
+                modifier = Modifier.animateItem(),
             )
         }
     }

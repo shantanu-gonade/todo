@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.eulerity.todo.core.designsystem.theme.TodoTheme
+import com.eulerity.todo.core.ui.to12hLabel
 import kotlinx.datetime.LocalTime
 
 /**
@@ -115,7 +116,7 @@ fun AddTaskSheet(
                 Spacer(modifier = Modifier.width(8.dp))
                 if (draftExpiryTime != null) {
                     Text(
-                        text = "Expires at %02d:%02d".format(draftExpiryTime.hour, draftExpiryTime.minute),
+                        text = "Expires at ${draftExpiryTime.to12hLabel()}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
                     )

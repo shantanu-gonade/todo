@@ -15,9 +15,9 @@ import kotlinx.datetime.toLocalDateTime
 import javax.inject.Inject
 
 class DefaultDateTimeProvider @Inject constructor(
-    private val clock: Clock = Clock.System,
-    private val zone: TimeZone = TimeZone.currentSystemDefault(),
-    private val dateChangeBroadcaster: DateChangeBroadcaster? = null,
+    private val clock: Clock,
+    private val zone: TimeZone,
+    private val dateChangeBroadcaster: DateChangeBroadcaster,
 ) : DateTimeProvider {
 
     override fun now(): Instant = clock.now()
@@ -36,9 +36,7 @@ class DefaultDateTimeProvider @Inject constructor(
 
         val flows = buildList {
             add(selfEmit)
-            dateChangeBroadcaster?.let { broadcaster ->
-                add(broadcaster.changes.map { today() })
-            }
+            add(dateChangeBroadcaster.changes.map { today() })
         }
 
         return merge(*flows.toTypedArray()).distinctUntilChanged()
