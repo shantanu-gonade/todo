@@ -1,21 +1,31 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Hilt
+-keep class dagger.hilt.** { *; }
+-keep @dagger.hilt.android.HiltAndroidApp class * { *; }
+-keep @dagger.hilt.android.AndroidEntryPoint class * { *; }
+-dontwarn dagger.hilt.**
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Room entities and DAOs
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao interface * { *; }
+-keepclassmembers @androidx.room.Entity class * { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# WorkManager workers
+-keep class * extends androidx.work.Worker { *; }
+-keep class * extends androidx.work.CoroutineWorker { *; }
+-keep class * extends androidx.work.ListenableWorker { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Domain model (data classes used in DataStore)
+-keepclassmembers class com.eulerity.todo.core.model.** { *; }
+
+# kotlinx-serialization
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.AnnotationsKt
+-keepclassmembers class kotlinx.serialization.json.** { *** Companion; }
+-keepclasseswithmembers class kotlinx.serialization.** { kotlinx.serialization.KSerializer serializer(...); }
+
+# kotlinx-datetime (used in Room converters)
+-keep class kotlinx.datetime.** { *; }
+
+# Kotlin
+-dontwarn kotlin.**
+-keep class kotlin.Metadata { *; }

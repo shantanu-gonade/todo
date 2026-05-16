@@ -1,8 +1,6 @@
 package com.eulerity.todo.core.data.notification
 
 import android.Manifest
-//noinspection SuspiciousImport
-import android.R
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -70,7 +68,7 @@ class EndOfDayReminderWorker @AssistedInject constructor(
         }
 
         val notification = NotificationCompat.Builder(ctx, REMINDER_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_popup_reminder)
+            .setSmallIcon(com.eulerity.todo.core.designsystem.R.drawable.ic_notification)
             .setContentTitle("Don't forget your todos!")
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

@@ -1,12 +1,25 @@
 package com.eulerity.todo.core.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -23,7 +36,7 @@ import com.eulerity.todo.core.designsystem.theme.TodoTheme
  * [key] is set to [TaskUi.id] so Compose can correctly animate insertions,
  * deletions, and reorders without re-composing the whole list.
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun TaskList(
     tasks: List<TaskUi>,
@@ -43,16 +56,61 @@ fun TaskList(
             key = { it.id },
             contentType = { "task" },
         ) { task ->
-            // Build per-item lambdas here so the outer callbacks (onToggle/onDelete)
-            // remain stable — they are only captured by reference inside the block,
-            // not re-allocated on every recomposition of the list.
-            TaskCard(
-                task = task,
-                onToggle = { checked -> onToggle(task.id, checked) },
-                onDelete = { onDelete(task.id) },
-                modifier = Modifier.animateItem(),
-                readOnly = readOnly,
-            )
+            if (readOnly) {
+                // History: read-only cards, no swipe gesture
+                TaskCard(
+                    task = task,
+                    onToggle = { checked -> onToggle(task.id, checked) },
+                    onDelete = { onDelete(task.id) },
+                    modifier = Modifier.animateItem(),
+                    readOnly = true,
+                )
+            } else {
+                // Today: swipe-left to delete
+                val dismissState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = { value ->
+                        if (value == SwipeToDismissBoxValue.EndToStart) {
+                            onDelete(task.id)
+                            true
+                        } else false
+                    },
+                )
+                // Reset if the item wasn't removed (e.g. reactive list didn't update)
+                LaunchedEffect(task.id) {
+                    if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
+                        dismissState.reset()
+                    }
+                }
+                SwipeToDismissBox(
+                    state = dismissState,
+                    enableDismissFromStartToEnd = false,
+                    backgroundContent = {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    shape = MaterialTheme.shapes.medium,
+                                ),
+                            contentAlignment = Alignment.CenterEnd,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Delete,
+                                contentDescription = "Delete task",
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(end = 16.dp),
+                            )
+                        }
+                    },
+                    modifier = Modifier.animateItem(),
+                ) {
+                    TaskCard(
+                        task = task,
+                        onToggle = { checked -> onToggle(task.id, checked) },
+                        onDelete = { onDelete(task.id) },
+                    )
+                }
+            }
         }
     }
 }
