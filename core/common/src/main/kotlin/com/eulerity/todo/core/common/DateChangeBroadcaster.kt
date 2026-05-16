@@ -12,15 +12,23 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Emits [Unit] whenever the system date, time, or timezone changes.
- * Registered as a dynamic BroadcastReceiver so it only fires when the
- * app process is alive — no background wakeups needed.
+ * Abstraction over system date/time/timezone change broadcasts.
+ * The separation allows unit tests to inject a fake without needing an Android Context.
+ */
+interface DateChangeBroadcaster {
+    /** Emits [Unit] whenever the system date, time, or timezone changes. */
+    val changes: Flow<Unit>
+}
+
+/**
+ * Production implementation backed by a dynamic [BroadcastReceiver].
+ * Registered only while the app process is alive — no background wakeups needed.
  */
 @Singleton
-class DateChangeBroadcaster @Inject constructor(
+class SystemDateChangeBroadcaster @Inject constructor(
     @ApplicationContext private val context: Context,
-) {
-    val changes: Flow<Unit> = callbackFlow {
+) : DateChangeBroadcaster {
+    override val changes: Flow<Unit> = callbackFlow {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context?, i: Intent?) {
                 trySend(Unit)

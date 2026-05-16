@@ -22,6 +22,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.turbine)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.kotlinx.datetime)
+    testImplementation(kotlin("test"))
 
     androidTestImplementation(libs.work.testing)
     androidTestImplementation(libs.androidx.test.ext.junit)

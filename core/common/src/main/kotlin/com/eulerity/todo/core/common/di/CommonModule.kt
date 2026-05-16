@@ -1,9 +1,11 @@
 package com.eulerity.todo.core.common.di
 
+import com.eulerity.todo.core.common.DateChangeBroadcaster
 import com.eulerity.todo.core.common.DateTimeProvider
 import com.eulerity.todo.core.common.DefaultDateTimeProvider
 import com.eulerity.todo.core.common.DefaultDispatcher
 import com.eulerity.todo.core.common.IoDispatcher
+import com.eulerity.todo.core.common.SystemDateChangeBroadcaster
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -21,6 +23,10 @@ abstract class CommonBindModule {
     @Binds
     @Singleton
     abstract fun bindDateTimeProvider(impl: DefaultDateTimeProvider): DateTimeProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindDateChangeBroadcaster(impl: SystemDateChangeBroadcaster): DateChangeBroadcaster
 }
 
 @Module

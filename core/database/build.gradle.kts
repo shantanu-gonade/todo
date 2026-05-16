@@ -9,8 +9,10 @@ dependencies {
     implementation(libs.kotlinx.datetime)
     implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
+    testImplementation(libs.turbine)
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(kotlin("test"))
 }
