@@ -31,6 +31,7 @@ fun TaskList(
     onDelete: (id: String) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+    readOnly: Boolean = false,
 ) {
     LazyColumn(
         modifier = modifier,
@@ -50,6 +51,7 @@ fun TaskList(
                 onToggle = { checked -> onToggle(task.id, checked) },
                 onDelete = { onDelete(task.id) },
                 modifier = Modifier.animateItem(),
+                readOnly = readOnly,
             )
         }
     }

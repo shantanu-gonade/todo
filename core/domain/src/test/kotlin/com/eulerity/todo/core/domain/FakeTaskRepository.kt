@@ -10,6 +10,12 @@ class FakeTaskRepository : TaskRepository {
     /** Tracks (title, expiryTime) pairs added via [addTask]. */
     val added = mutableListOf<Pair<String, LocalTime?>>()
 
+    /** Tracks (id, completed) pairs set via [setCompleted]. */
+    val toggled = mutableListOf<Pair<String, Boolean>>()
+
+    /** Tracks ids deleted via [deleteTask]. */
+    val deleted = mutableListOf<String>()
+
     private val todaysTasks = MutableStateFlow<List<Task>>(emptyList())
     private val expiredTasks = MutableStateFlow<List<Task>>(emptyList())
 
@@ -20,6 +26,11 @@ class FakeTaskRepository : TaskRepository {
         added.add(title to expiryTime)
     }
 
-    override suspend fun setCompleted(id: String, completed: Boolean) {}
-    override suspend fun deleteTask(id: String) {}
+    override suspend fun setCompleted(id: String, completed: Boolean) {
+        toggled.add(id to completed)
+    }
+
+    override suspend fun deleteTask(id: String) {
+        deleted.add(id)
+    }
 }

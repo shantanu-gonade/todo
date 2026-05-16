@@ -40,6 +40,7 @@ fun TaskCard(
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
+    readOnly: Boolean = false,
 ) {
     val isExpiredActive = task.isExpired && !task.isCompleted
     val titleColor by animateColorAsState(
@@ -67,7 +68,8 @@ fun TaskCard(
         ) {
             TodoCheckbox(
                 checked = task.isCompleted,
-                onCheckedChange = onToggle,
+                onCheckedChange = if (readOnly) ({}) else onToggle,
+                enabled = !readOnly,
             )
 
             Spacer(modifier = Modifier.width(8.dp))
@@ -96,12 +98,14 @@ fun TaskCard(
                 }
             }
 
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Outlined.Delete,
-                    contentDescription = "Delete task",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            if (!readOnly) {
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "Delete task",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

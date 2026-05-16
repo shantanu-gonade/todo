@@ -18,6 +18,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.tooling.preview.Preview
@@ -142,14 +144,15 @@ fun TodayScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
+            contentAlignment = Alignment.Center,
         ) {
-            if (uiState.tasks.isEmpty()) {
-                TodoEmptyState(
+            when {
+                uiState.isLoading -> CircularProgressIndicator()
+                uiState.tasks.isEmpty() -> TodoEmptyState(
                     headline = "Nothing for today yet",
                     supportingText = "Tap + to add your first task",
                 )
-            } else {
-                TaskList(
+                else -> TaskList(
                     tasks = uiState.tasks,
                     onToggle = onToggle,
                     onDelete = onDelete,
@@ -194,5 +197,13 @@ private fun TodayScreenTasksPreview() {
                 ),
             ),
         )
+    }
+}
+
+@Preview(showBackground = true, name = "Today — Loading")
+@Composable
+private fun TodayScreenLoadingPreview() {
+    TodoTheme {
+        TodayScreen(uiState = TodayUiState(isLoading = true))
     }
 }

@@ -25,6 +25,7 @@ fun TodoCheckbox(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val scale by animateFloatAsState(
         targetValue = if (checked) 1.15f else 1f,
@@ -34,6 +35,7 @@ fun TodoCheckbox(
     Checkbox(
         checked = checked,
         onCheckedChange = onCheckedChange,
+        enabled = enabled,
         modifier = modifier.graphicsLayer {
             scaleX = scale
             scaleY = scale

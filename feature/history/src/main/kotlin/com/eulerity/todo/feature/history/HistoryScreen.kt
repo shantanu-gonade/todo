@@ -11,7 +11,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -64,11 +63,6 @@ fun HistoryScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Compose rule 5: define stable no-op callbacks once via remember so TaskList
-    // never re-composes due to lambda identity changes across recompositions.
-    val noOpToggle: (id: String, checked: Boolean) -> Unit = remember { { _, _ -> } }
-    val noOpDelete: (id: String) -> Unit = remember { { } }
-
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -96,15 +90,13 @@ fun HistoryScreen(
                     supportingText = "Tasks from previous days will appear here",
                 )
             } else {
-                // Read-only: onToggle and onDelete are no-ops. The checkbox/delete
-                // affordances still render (reusing the shared TaskList + TaskCard
-                // components) but user interactions produce no state change — a
-                // deliberate product decision. Alternatively render a read-only variant;
-                // the no-op approach is simpler and avoids component duplication.
+                // readOnly=true hides delete buttons and disables checkboxes.
+                // History is immutable — past tasks cannot be modified.
                 TaskList(
                     tasks = uiState.tasks,
-                    onToggle = noOpToggle,
-                    onDelete = noOpDelete,
+                    onToggle = { _, _ -> },
+                    onDelete = { },
+                    readOnly = true,
                 )
             }
         }
