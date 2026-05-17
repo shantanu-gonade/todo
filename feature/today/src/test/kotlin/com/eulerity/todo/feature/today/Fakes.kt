@@ -4,9 +4,11 @@ import com.eulerity.todo.core.common.DateTimeProvider
 import com.eulerity.todo.core.data.TaskRepository
 import com.eulerity.todo.core.domain.AddTaskUseCase
 import com.eulerity.todo.core.domain.DeleteTaskUseCase
+import com.eulerity.todo.core.domain.UpdateTaskUseCase
 import com.eulerity.todo.core.domain.ObserveTodaysTasksUseCase
 import com.eulerity.todo.core.domain.ToggleTaskCompletionUseCase
 import com.eulerity.todo.core.model.Task
+import com.eulerity.todo.core.model.TaskCategory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.datetime.Instant
@@ -52,9 +54,11 @@ class FakeTaskRepository(tasks: List<Task> = emptyList()) : TaskRepository {
 
     override fun observeTodaysTasks(): Flow<List<Task>> = tasksFlow
     override fun observeExpiredTasks(): Flow<List<Task>> = MutableStateFlow(emptyList())
-    override suspend fun addTask(title: String, expiryTime: LocalTime?) {
+    override suspend fun addTask(title: String, expiryTime: LocalTime?, category: TaskCategory) {
         added += title to expiryTime
     }
+    override suspend fun updateTask(id: String, title: String, expiryTime: LocalTime?, category: TaskCategory) {}
+    override suspend fun getTask(id: String): Task? = tasksFlow.value.find { it.id == id }
     override suspend fun setCompleted(id: String, completed: Boolean) {
         toggled += id to completed
     }
@@ -85,6 +89,23 @@ fun FakeObserveTodaysTasks(
 }
 
 /**
+ * Returns a [FakeTaskRepository] pre-populated with [initialCount] fake tasks,
+ * plus an [ObserveTodaysTasksUseCase] backed by the same repo.
+ * Use when a test needs multiple use-cases to share state.
+ */
+fun FakeRepoWithTasks(
+    initialCount: Int = 0,
+    firstId: String = "1",
+): Pair<FakeTaskRepository, ObserveTodaysTasksUseCase> {
+    val tasks = when {
+        initialCount == 0 -> emptyList()
+        else -> listOf(fakeTask(firstId)) + (2..initialCount).map { fakeTask(it.toString()) }
+    }
+    val repo = FakeTaskRepository(tasks)
+    return repo to ObserveTodaysTasksUseCase(repo)
+}
+
+/**
  * Returns an [AddTaskUseCase] backed by a fake repository.
  * The [shouldFail] flag causes the real use-case to receive a null title that
  * triggers its own blank-title guard — use [FakeAddTask] without that flag for
@@ -102,3 +123,8 @@ fun FakeToggleCompletion(): ToggleTaskCompletionUseCase =
 
 fun FakeDeleteTask(): DeleteTaskUseCase =
     DeleteTaskUseCase(FakeTaskRepository())
+
+fun FakeUpdateTask(
+    dateTimeProvider: DateTimeProvider = FakeDateTimeProvider(),
+    repo: TaskRepository = FakeTaskRepository(),
+): UpdateTaskUseCase = UpdateTaskUseCase(repo, dateTimeProvider)

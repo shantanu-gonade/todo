@@ -68,7 +68,7 @@ class EndOfDayReminderWorker @AssistedInject constructor(
         }
 
         val notification = NotificationCompat.Builder(ctx, REMINDER_CHANNEL_ID)
-            .setSmallIcon(com.eulerity.todo.core.designsystem.R.drawable.ic_notification)
+            .setSmallIcon(com.eulerity.todo.core.data.R.drawable.ic_notification)
             .setContentTitle("Don't forget your todos!")
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
