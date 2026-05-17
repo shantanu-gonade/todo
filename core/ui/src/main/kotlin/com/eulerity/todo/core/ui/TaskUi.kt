@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Eulerity, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.eulerity.todo.core.ui
 
 import com.eulerity.todo.core.model.Task
@@ -26,12 +42,15 @@ data class TaskUi(
     val createdDate: LocalDate? = null,
 )
 
+private const val HOURS_IN_HALF_DAY = 12
+private const val NOON_HOUR = 12
+
 /**
  * Converts a [LocalTime] to a 12-hour AM/PM label (e.g. "2:30 PM").
  */
 fun LocalTime.to12hLabel(): String {
-    val h = if (hour % 12 == 0) 12 else hour % 12
-    val amPm = if (hour < 12) "AM" else "PM"
+    val h = if (hour % HOURS_IN_HALF_DAY == 0) NOON_HOUR else hour % HOURS_IN_HALF_DAY
+    val amPm = if (hour < NOON_HOUR) "AM" else "PM"
     return "%d:%02d %s".format(h, minute, amPm)
 }
 

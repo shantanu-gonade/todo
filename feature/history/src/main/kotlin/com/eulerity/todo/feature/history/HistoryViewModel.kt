@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Eulerity, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.eulerity.todo.feature.history
 
 import androidx.lifecycle.ViewModel
@@ -12,6 +28,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.LocalDate
 import javax.inject.Inject
+
+/** Sentinel date used when a task has no [createdDate]; sorts to the bottom of history. */
+private val EPOCH_DATE = LocalDate(1970, 1, 1)
 
 /**
  * ViewModel for the History (expired tasks) screen.
@@ -41,7 +60,7 @@ class HistoryViewModel @Inject constructor(
                     .groupBy { it.createdDate }
                     .entries
                     .sortedByDescending { it.key }   // most-recent date at top
-                    .map { (date, group) -> (date ?: LocalDate(1970, 1, 1)) to group }
+                    .map { (date, group) -> (date ?: EPOCH_DATE) to group }
 
                 HistoryUiState(
                     tasksByDate = grouped,

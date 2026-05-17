@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Eulerity, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.eulerity.todo.feature.history
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -34,6 +50,9 @@ import com.eulerity.todo.core.designsystem.theme.TodoTheme
 import com.eulerity.todo.core.ui.TaskCard
 import com.eulerity.todo.core.ui.TaskUi
 import kotlinx.datetime.LocalDate
+
+private const val DAY_ABBREV_LEN = 3
+private const val MONTH_ABBREV_LEN = 3
 
 // ---------------------------------------------------------------------------
 // Stateful entry point — wired to Hilt + lifecycle
@@ -146,7 +165,6 @@ private fun HistoryDateGroupedList(
                 TaskCard(
                     task = task,
                     onToggle = {},
-                    onDelete = {},
                     readOnly = true,
                     modifier = Modifier.animateItem(),
                 )
@@ -179,8 +197,8 @@ private fun DateSectionHeader(date: LocalDate) {
  * Example: 2026-05-16 → "Sat, May 16"
  */
 internal fun formatHistoryDate(date: LocalDate): String {
-    val dayName = date.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
-    val monthName = date.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
+    val dayName = date.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }.take(DAY_ABBREV_LEN)
+    val monthName = date.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(MONTH_ABBREV_LEN)
     return "$dayName, $monthName ${date.dayOfMonth}"
 }
 
@@ -199,20 +217,41 @@ private fun HistoryScreenEmptyPreview() {
     }
 }
 
+@Suppress("MagicNumber")
 @Preview(showBackground = true, name = "History — With Expired Tasks Grouped")
 @Composable
 private fun HistoryScreenTasksPreview() {
+    val date1 = LocalDate(2026, 5, 16)
+    val date2 = LocalDate(2026, 5, 15)
     TodoTheme {
         HistoryScreen(
             uiState = HistoryUiState(
                 isLoading = false,
                 tasksByDate = listOf(
-                    LocalDate(2026, 5, 16) to listOf(
-                        TaskUi(id = "1", title = "Morning standup", isCompleted = true, expiryLabel = "09:30", createdDate = LocalDate(2026, 5, 16)),
-                        TaskUi(id = "2", title = "Submit report", isCompleted = false, expiryLabel = "17:00", createdDate = LocalDate(2026, 5, 16)),
+                    date1 to listOf(
+                        TaskUi(
+                            id = "1",
+                            title = "Morning standup",
+                            isCompleted = true,
+                            expiryLabel = "09:30",
+                            createdDate = date1,
+                        ),
+                        TaskUi(
+                            id = "2",
+                            title = "Submit report",
+                            isCompleted = false,
+                            expiryLabel = "17:00",
+                            createdDate = date1,
+                        ),
                     ),
-                    LocalDate(2026, 5, 15) to listOf(
-                        TaskUi(id = "3", title = "Team lunch booking", isCompleted = false, expiryLabel = null, createdDate = LocalDate(2026, 5, 15)),
+                    date2 to listOf(
+                        TaskUi(
+                            id = "3",
+                            title = "Team lunch booking",
+                            isCompleted = false,
+                            expiryLabel = null,
+                            createdDate = date2,
+                        ),
                     ),
                 ),
             ),

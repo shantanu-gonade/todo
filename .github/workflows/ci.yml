@@ -15,12 +15,10 @@ on:
   push:
     branches:
       - main
-      - master
       - develop
   pull_request:
     branches:
       - main
-      - master
       - develop
 
 # Cancel in-flight runs for the same PR / branch to save runner minutes.

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Eulerity, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.eulerity.todo.core.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -41,6 +57,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.eulerity.todo.core.designsystem.theme.TodoTheme
 import com.eulerity.todo.core.model.TaskCategory
+
+private const val DRAG_SCALE = 1.04f
+private const val DRAG_ALPHA = 0.85f
+private const val DRAG_SHADOW_DP = 8
 
 /**
  * Stateless lazy list of [TaskCard]s.
@@ -148,6 +168,7 @@ private data class DragState(
  * which section the user dropped the card into. The dragged card is lifted visually
  * (graphicsLayer scale + alpha) while a ghost placeholder remains in place.
  */
+@Suppress("CyclomaticComplexMethod", "CognitiveComplexMethod")
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun GroupedTaskList(
@@ -268,7 +289,6 @@ private fun CategorySectionHeader(
     modifier: Modifier = Modifier,
     isDropTarget: Boolean = false,
 ) {
-    val borderColor = if (isDropTarget) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
     Text(
         text = label,
         style = MaterialTheme.typography.labelLarge,
@@ -338,10 +358,10 @@ private fun DraggableTaskRow(
             }
             .graphicsLayer {
                 if (isDragging) {
-                    scaleX = 1.04f
-                    scaleY = 1.04f
-                    alpha = 0.85f
-                    shadowElevation = 8.dp.toPx()
+                    scaleX = DRAG_SCALE
+                    scaleY = DRAG_SCALE
+                    alpha = DRAG_ALPHA
+                    shadowElevation = DRAG_SHADOW_DP.dp.toPx()
                 }
             },
     ) {
@@ -370,7 +390,6 @@ private fun TaskRow(
         TaskCard(
             task = task,
             onToggle = { checked -> onToggle(task.id, checked) },
-            onDelete = { onDelete(task.id) },
             modifier = modifier,
             readOnly = true,
         )
@@ -415,7 +434,6 @@ private fun TaskRow(
             TaskCard(
                 task = task,
                 onToggle = { checked -> onToggle(task.id, checked) },
-                onDelete = { onDelete(task.id) },
                 onEdit = onEdit?.let { cb -> { cb(task.id) } },
             )
         }

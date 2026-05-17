@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Eulerity, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.eulerity.todo.core.data.notification
 
 import android.app.AlarmManager
@@ -44,21 +60,28 @@ class AlarmManagerTaskExpiryScheduler @Inject constructor(
 
     override fun schedule(taskId: String, taskTitle: String, expiryTime: LocalTime) {
         val am = alarmManager ?: return
+        if (!canScheduleExactAlarms(am)) return
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) return
+        val triggerMs = computeTriggerMs(expiryTime)
+        if (triggerMs != null) {
+            val pendingIntent = buildPendingIntent(taskId, taskTitle)
+            if (pendingIntent != null) {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMs, pendingIntent)
+            }
+        }
+    }
 
+    private fun canScheduleExactAlarms(am: AlarmManager): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
+
+    private fun computeTriggerMs(expiryTime: LocalTime): Long? {
         val tz = TimeZone.currentSystemDefault()
-        val today = dateTimeProvider.today()
         val triggerMs = LocalDateTime(
-            date = today,
+            date = dateTimeProvider.today(),
             time = expiryTime,
         ).toInstant(tz).toEpochMilliseconds()
-
         // Don't schedule if already in the past
-        if (triggerMs <= dateTimeProvider.now().toEpochMilliseconds()) return
-
-        val pendingIntent = buildPendingIntent(taskId, taskTitle) ?: return
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMs, pendingIntent)
+        return triggerMs.takeIf { it > dateTimeProvider.now().toEpochMilliseconds() }
     }
 
     override fun cancel(taskId: String) {

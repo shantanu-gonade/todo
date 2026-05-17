@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Eulerity, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.eulerity.todo.core.ui
 
 import androidx.compose.foundation.layout.Arrangement
@@ -59,11 +75,11 @@ private fun TaskCategory.resolveColor(): Color {
  * no in-card delete button. This keeps the card surface clean and avoids
  * duplicate affordances.
  */
+@Suppress("CognitiveComplexMethod")
 @Composable
 fun TaskCard(
     task: TaskUi,
     onToggle: (Boolean) -> Unit,
-    onDelete: () -> Unit,
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
     onEdit: (() -> Unit)? = null,
@@ -162,7 +178,6 @@ private fun TaskCardActivePreview() {
         TaskCard(
             task = TaskUi(id = "1", title = "Buy groceries", isCompleted = false, expiryLabel = "18:00"),
             onToggle = {},
-            onDelete = {},
             modifier = Modifier.padding(16.dp),
         )
     }
@@ -175,7 +190,6 @@ private fun TaskCardCompletedPreview() {
         TaskCard(
             task = TaskUi(id = "2", title = "Call dentist", isCompleted = true, expiryLabel = null),
             onToggle = {},
-            onDelete = {},
             modifier = Modifier.padding(16.dp),
         )
     }
