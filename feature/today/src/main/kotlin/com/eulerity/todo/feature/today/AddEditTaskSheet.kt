@@ -7,8 +7,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -76,7 +80,12 @@ fun AddEditTaskSheet(
     draftCategory: TaskCategory = TaskCategory.NONE,
 ) {
     val isEditMode = editingTaskId != null
-    val sheetState = rememberModalBottomSheetState()
+    // skipPartiallyExpanded = true — prevents the sheet from stopping at the
+    // half-expanded state on first open. Without this flag the default 3-state
+    // sheet (Hidden → HalfExpanded → Expanded) means the sheet only opens to
+    // ~50 % height until the user drags it up, which also causes the keyboard
+    // and TimePicker to appear to "cut off" the sheet instead of expanding it.
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showTimePicker by rememberSaveable { mutableStateOf(false) }
 
     val timePickerState: TimePickerState = rememberTimePickerState(
@@ -107,6 +116,15 @@ fun AddEditTaskSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // imePadding() pushes the Column's bottom up when the soft keyboard
+                // appears, keeping "Add task" / "Save" visible above the keyboard.
+                // Must come BEFORE navigationBarsPadding so both insets stack correctly.
+                .imePadding()
+                // Ensure content clears the navigation bar when no keyboard is showing.
+                .navigationBarsPadding()
+                // Allow the column to scroll when TimePicker adds ~300dp of height —
+                // this prevents the "OK/Cancel" buttons being cut off at the bottom.
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),

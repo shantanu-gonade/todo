@@ -8,12 +8,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,11 +53,11 @@ private fun TaskCategory.resolveColor(): Color {
  * Receives an immutable [TaskUi] snapshot and typed callbacks — no ViewModel
  * reference, no side effects. Correct by construction.
  *
- * Layout: [TodoCheckbox] | title + optional expiry label | delete [IconButton]
+ * Layout: [TodoCheckbox] | title + optional expiry label
  *
- * @param showDeleteButton When false the delete button is hidden even if readOnly=false.
- *   Used by [TaskRow] to hide the in-card button during swipe-to-dismiss so the
- *   swipe background's delete icon is the only affordance shown.
+ * Deletion is handled exclusively by swipe-to-dismiss in [TaskList] — there is
+ * no in-card delete button. This keeps the card surface clean and avoids
+ * duplicate affordances.
  */
 @Composable
 fun TaskCard(
@@ -71,7 +67,6 @@ fun TaskCard(
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
     onEdit: (() -> Unit)? = null,
-    showDeleteButton: Boolean = true,
 ) {
     val isExpiredActive = task.isExpired && !task.isCompleted
     val titleColor by animateColorAsState(
@@ -94,9 +89,15 @@ fun TaskCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 4.dp),
+            // CenterVertically: strip, checkbox, and text column are centred on the
+            // row's cross-axis. The text Column uses weight(1f) and wraps its own height,
+            // so the Row naturally grows to fit two lines (title + expiry label) while
+            // every other element centres within that height — correct M3 two-line pattern.
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Spec C3: 4dp colored left indicator strip
+            // Spec C3: 4 dp wide coloured left indicator strip.
+            // fillMaxHeight + fraction keeps the strip proportional to the Row height
+            // whether the card is 1-line (title only) or 2-line (title + expiry label).
             if (task.category != TaskCategory.NONE) {
                 Box(
                     modifier = Modifier
@@ -107,6 +108,7 @@ fun TaskCard(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
             }
+
             TodoCheckbox(
                 checked = task.isCompleted,
                 onCheckedChange = if (readOnly) ({}) else onToggle,
@@ -123,6 +125,7 @@ fun TaskCard(
                             Modifier.clickable(onClick = onEdit)
                         else Modifier
                     ),
+                verticalArrangement = Arrangement.Center,
             ) {
                 Text(
                     text = task.title,
@@ -147,18 +150,6 @@ fun TaskCard(
                 }
             }
 
-            // Only show the in-card delete button when not swiping (showDeleteButton=true)
-            // and the card is not read-only. During swipe-to-dismiss the background
-            // already reveals a delete icon so rendering the button here causes overlap.
-            if (!readOnly && showDeleteButton) {
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Delete task",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
         }
     }
 }

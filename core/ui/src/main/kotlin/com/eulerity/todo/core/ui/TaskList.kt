@@ -389,10 +389,6 @@ private fun TaskRow(
             }
         }
 
-        val isSwiping by remember {
-            derivedStateOf { dismissState.targetValue == SwipeToDismissBoxValue.EndToStart }
-        }
-
         SwipeToDismissBox(
             state = dismissState,
             enableDismissFromStartToEnd = false,
@@ -421,7 +417,6 @@ private fun TaskRow(
                 onToggle = { checked -> onToggle(task.id, checked) },
                 onDelete = { onDelete(task.id) },
                 onEdit = onEdit?.let { cb -> { cb(task.id) } },
-                showDeleteButton = !isSwiping,
             )
         }
     }
