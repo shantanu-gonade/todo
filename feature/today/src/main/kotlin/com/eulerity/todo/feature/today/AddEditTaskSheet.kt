@@ -45,37 +45,37 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.eulerity.todo.core.designsystem.theme.TodoTheme
+import com.eulerity.todo.core.model.TaskCategory
 import com.eulerity.todo.core.ui.to12hLabel
 import kotlinx.datetime.LocalTime
 
 /**
- * Add-task bottom sheet.
+ * Add/Edit task bottom sheet.
+ *
+ * When [editingTaskId] is null the sheet is in **add mode**: title reads "New task"
+ * and the primary button fires [TodayIntent.AddTaskClicked].
+ *
+ * When [editingTaskId] is non-null the sheet is in **edit mode**: title reads
+ * "Edit task" and the primary button fires [TodayIntent.SaveEditClicked].
+ * The sheet is pre-populated with [draftTitle] and [draftExpiryTime] from the
+ * ViewModel (which loaded them when [TodayIntent.EditTaskClicked] was received).
  *
  * Compose rule 3: visibility is entirely controlled by the caller (TodayScreen
  * only renders this composable when `uiState.addSheetVisible == true`).
  * `onDismissRequest` routes back to the ViewModel via [TodayIntent.AddSheetDismissed].
- *
- * The time picker is shown/hidden via a local `showTimePicker` flag that lives
- * inside this composable — it is purely presentation state, not domain state.
- *
- * ## Keyboard dismissal strategy
- * ModalBottomSheet runs in its own dialog window. The correct way to dismiss
- * the IME is to call InputMethodManager.hideSoftInputFromWindow() using the
- * window token from LocalView.current *inside* the sheet's content lambda —
- * that view belongs to the dialog window, giving us the right token.
- * focusManager.clearFocus() is called first so the TextField stops being the
- * IME target; then hideSoftInputFromWindow forcibly dismisses the IME on that
- * dialog window.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddTaskSheet(
+fun AddEditTaskSheet(
     draftTitle: String,
     draftExpiryTime: LocalTime?,
     validationError: String?,
     onIntent: (TodayIntent) -> Unit,
     modifier: Modifier = Modifier,
+    editingTaskId: String? = null,
+    draftCategory: TaskCategory = TaskCategory.NONE,
 ) {
+    val isEditMode = editingTaskId != null
     val sheetState = rememberModalBottomSheetState()
     var showTimePicker by rememberSaveable { mutableStateOf(false) }
 
@@ -98,9 +98,6 @@ fun AddTaskSheet(
         val focusManager = LocalFocusManager.current
         val focusRequester = remember { FocusRequester() }
 
-        // Single function that reliably hides the IME on the dialog window.
-        // Step 1: clear Compose focus (makes TextField stop being the IME target)
-        // Step 2: call IMM.hideSoftInputFromWindow with the DIALOG window token
         fun hideKeyboard() {
             focusManager.clearFocus()
             val imm = ContextCompat.getSystemService(context, InputMethodManager::class.java)
@@ -115,7 +112,7 @@ fun AddTaskSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = "New task",
+                text = if (isEditMode) "Edit task" else "New task",
                 style = MaterialTheme.typography.titleLarge,
             )
 
@@ -126,9 +123,6 @@ fun AddTaskSheet(
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
                     .onFocusChanged { focusState ->
-                        // When the title field gains focus while the time picker is
-                        // open, close the picker. The keyboard will appear naturally
-                        // because the field is now focused — the picker would collide.
                         if (focusState.isFocused && showTimePicker) {
                             showTimePicker = false
                         }
@@ -141,13 +135,10 @@ fun AddTaskSheet(
                 } else null,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = { hideKeyboard() }
-                ),
+                keyboardActions = KeyboardActions(onDone = { hideKeyboard() }),
             )
 
-            // Expiry-time row: tapping the clock icon hides the keyboard first,
-            // then toggles the time picker.
+            // Expiry-time row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -211,22 +202,35 @@ fun AddTaskSheet(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
+            // Category chip row (spec C2)
+            CategoryChipRow(
+                selected = draftCategory,
+                onCategorySelected = { onIntent(TodayIntent.DraftCategoryChanged(it)) },
+            )
+
             Button(
-                onClick = { onIntent(TodayIntent.AddTaskClicked) },
+                onClick = {
+                    if (isEditMode) onIntent(TodayIntent.SaveEditClicked)
+                    else onIntent(TodayIntent.AddTaskClicked)
+                },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Add task")
+                Text(if (isEditMode) "Save" else "Add task")
             }
         }
     }
 }
 
+// ---------------------------------------------------------------------------
+// Previews
+// ---------------------------------------------------------------------------
+
 @OptIn(ExperimentalMaterial3Api::class)
-@Preview(showBackground = true, name = "AddTaskSheet — Empty")
+@Preview(showBackground = true, name = "AddEditTaskSheet — Add mode")
 @Composable
 private fun AddTaskSheetEmptyPreview() {
     TodoTheme {
-        AddTaskSheet(
+        AddEditTaskSheet(
             draftTitle = "",
             draftExpiryTime = null,
             validationError = null,
@@ -236,14 +240,29 @@ private fun AddTaskSheetEmptyPreview() {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Preview(showBackground = true, name = "AddTaskSheet — Validation error")
+@Preview(showBackground = true, name = "AddEditTaskSheet — Edit mode")
+@Composable
+private fun EditTaskSheetPreview() {
+    TodoTheme {
+        AddEditTaskSheet(
+            draftTitle = "Buy groceries",
+            draftExpiryTime = LocalTime(14, 30),
+            validationError = null,
+            onIntent = {},
+            editingTaskId = "task-1",
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, name = "AddEditTaskSheet — Validation error")
 @Composable
 private fun AddTaskSheetErrorPreview() {
     TodoTheme {
-        AddTaskSheet(
+        AddEditTaskSheet(
             draftTitle = "",
             draftExpiryTime = null,
-            validationError = "Title cannot be blank",
+            validationError = "Title can't be empty",
             onIntent = {},
         )
     }

@@ -56,10 +56,6 @@ fun TodayRoute(
     val haptic = LocalHapticFeedback.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
 
-    // Compose rule 2: effects collected lifecycle-aware via flowWithLifecycle(STARTED).
-    // This stops collecting when the screen is backgrounded (paused/stopped) so haptics
-    // and snackbars never fire while the user is in another app.
-    // The Channel's BUFFERED capacity prevents event loss during brief lifecycle gaps.
     val lifecycleAwareEffects = remember(viewModel.effects, lifecycle) {
         viewModel.effects.flowWithLifecycle(lifecycle)
     }
@@ -70,6 +66,9 @@ fun TodayRoute(
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
 
                 is TodayEffect.ShowError ->
+                    snackbarHostState.showSnackbar(effect.message)
+
+                is TodayEffect.ShowMessage ->
                     snackbarHostState.showSnackbar(effect.message)
             }
         }
@@ -104,13 +103,15 @@ fun TodayScreen(
 ) {
     // Compose rule 5: callbacks are remembered so their identity is stable across
     // recompositions. TaskList passes them into items{} without re-allocating per item.
-    // onToggle intentionally ignores `checked` — the ViewModel derives the correct
-    // toggled value from its own state (source of truth), avoiding stale UI reads.
     val onToggle: (id: String, checked: Boolean) -> Unit = remember(onIntent) {
         { id, _ -> onIntent(TodayIntent.TaskCompletionToggled(id)) }
     }
     val onDelete: (id: String) -> Unit = remember(onIntent) {
         { id -> onIntent(TodayIntent.DeleteTask(id)) }
+    }
+    // E1: tapping the task title opens the edit sheet
+    val onEdit: (id: String) -> Unit = remember(onIntent) {
+        { id -> onIntent(TodayIntent.EditTaskClicked(id)) }
     }
 
     Scaffold(
@@ -156,17 +157,20 @@ fun TodayScreen(
                     tasks = uiState.tasks,
                     onToggle = onToggle,
                     onDelete = onDelete,
+                    onEdit = onEdit,
                 )
             }
         }
 
         // Compose rule 3: sheet visibility driven entirely by state.
         if (uiState.addSheetVisible) {
-            AddTaskSheet(
+            AddEditTaskSheet(
                 draftTitle = uiState.draftTitle,
                 draftExpiryTime = uiState.draftExpiryTime,
                 validationError = uiState.validationError,
                 onIntent = onIntent,
+                editingTaskId = uiState.editingTaskId,
+                draftCategory = uiState.draftCategory,
             )
         }
     }

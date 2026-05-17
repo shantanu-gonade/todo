@@ -7,6 +7,8 @@ import com.eulerity.todo.core.domain.AddTaskUseCase
 import com.eulerity.todo.core.domain.DeleteTaskUseCase
 import com.eulerity.todo.core.domain.ObserveTodaysTasksUseCase
 import com.eulerity.todo.core.domain.ToggleTaskCompletionUseCase
+import com.eulerity.todo.core.domain.UpdateTaskUseCase
+import com.eulerity.todo.core.model.TaskCategory
 import com.eulerity.todo.core.ui.asTaskUi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -29,8 +31,8 @@ import javax.inject.Inject
  * State is produced by combining the domain use-case Flow with local ephemeral
  * UI state (sheet visibility, draft fields) via [combine] + [stateIn].
  *
- * One-shot events (haptics, errors) travel through a buffered [Channel] so they
- * are never lost while the collector is temporarily inactive.
+ * One-shot events (haptics, errors, messages) travel through a buffered [Channel]
+ * so they are never lost while the collector is temporarily inactive.
  *
  * Single entry point [onIntent] keeps the contract unambiguous for tests and
  * the composable layer.
@@ -39,6 +41,7 @@ import javax.inject.Inject
 class TodayViewModel @Inject constructor(
     observeTodaysTasks: ObserveTodaysTasksUseCase,
     private val addTask: AddTaskUseCase,
+    private val updateTask: UpdateTaskUseCase,
     private val toggleCompletion: ToggleTaskCompletionUseCase,
     private val deleteTask: DeleteTaskUseCase,
     private val dateTimeProvider: DateTimeProvider,
@@ -72,8 +75,10 @@ class TodayViewModel @Inject constructor(
                 },
                 isLoading = false,
                 addSheetVisible = local.addSheetVisible,
+                editingTaskId = local.editingTaskId,
                 draftTitle = local.draftTitle,
                 draftExpiryTime = local.draftExpiryTime,
+                draftCategory = local.draftCategory,
                 validationError = local.validationError,
             )
         }.stateIn(
@@ -88,16 +93,25 @@ class TodayViewModel @Inject constructor(
                 localState.update { it.copy(draftTitle = intent.value, validationError = null) }
 
             TodayIntent.OpenAddSheet ->
-                localState.update { it.copy(addSheetVisible = true) }
+                localState.update { it.copy(addSheetVisible = true, editingTaskId = null) }
 
             TodayIntent.AddTaskClicked ->
                 submitDraft()
 
+            is TodayIntent.EditTaskClicked ->
+                openEditSheet(intent.taskId)
+
+            TodayIntent.SaveEditClicked ->
+                saveEdit()
+
             TodayIntent.AddSheetDismissed ->
                 localState.update { TodayLocalState() }
 
+            is TodayIntent.DraftCategoryChanged ->
+                localState.update { it.copy(draftCategory = intent.category) }
+
             is TodayIntent.DraftExpiryTimeChanged ->
-                localState.update { it.copy(draftExpiryTime = intent.time) }
+                localState.update { it.copy(draftExpiryTime = intent.time, validationError = null) }
 
             is TodayIntent.TaskCompletionToggled ->
                 toggle(intent.id)
@@ -107,18 +121,44 @@ class TodayViewModel @Inject constructor(
         }
     }
 
+    private fun openEditSheet(taskId: String) = viewModelScope.launch {
+        // TaskUi carries the raw expiryTime (not just the formatted label) so the
+        // edit sheet can pre-populate the time picker without any lossy re-parsing.
+        val task = uiState.value.tasks.find { it.id == taskId } ?: return@launch
+        localState.update { _ ->
+            TodayLocalState(
+                addSheetVisible = true,
+                editingTaskId = taskId,
+                draftTitle = task.title,
+                draftExpiryTime = task.expiryTime,
+                draftCategory = task.category,
+            )
+        }
+    }
+
     private fun submitDraft() = viewModelScope.launch {
         val local = localState.value
-        addTask(local.draftTitle, local.draftExpiryTime)
+        addTask(local.draftTitle, local.draftExpiryTime, local.draftCategory)
             .onSuccess { localState.update { TodayLocalState() } }
             .onFailure { e ->
                 localState.update { it.copy(validationError = e.message ?: "Invalid task") }
             }
     }
 
+    private fun saveEdit() = viewModelScope.launch {
+        val local = localState.value
+        val editId = local.editingTaskId ?: return@launch
+        updateTask(editId, local.draftTitle, local.draftExpiryTime, local.draftCategory)
+            .onSuccess {
+                localState.update { TodayLocalState() }
+                effectChannel.send(TodayEffect.ShowMessage("Task updated"))
+            }
+            .onFailure { e ->
+                localState.update { it.copy(validationError = e.message ?: "Invalid task") }
+            }
+    }
+
     private fun toggle(id: String) = viewModelScope.launch {
-        // Look up the current completion status from the last known state
-        // so we can send the correct toggled value to the use case.
         val current = uiState.value.tasks.find { it.id == id }?.isCompleted ?: false
         toggleCompletion(id, !current)
         effectChannel.send(TodayEffect.TaskCompletedHaptic)
@@ -131,7 +171,9 @@ class TodayViewModel @Inject constructor(
  */
 internal data class TodayLocalState(
     val addSheetVisible: Boolean = false,
+    val editingTaskId: String? = null,
     val draftTitle: String = "",
     val draftExpiryTime: LocalTime? = null,
+    val draftCategory: TaskCategory = TaskCategory.NONE,
     val validationError: String? = null,
 )

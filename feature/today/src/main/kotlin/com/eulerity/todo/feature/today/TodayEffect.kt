@@ -14,4 +14,7 @@ sealed interface TodayEffect {
 
     /** Show a transient Snackbar with an error message. */
     data class ShowError(val message: String) : TodayEffect
+
+    /** Show a transient Snackbar with a success/informational message. */
+    data class ShowMessage(val message: String) : TodayEffect
 }
