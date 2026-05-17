@@ -48,10 +48,6 @@ jobs:
       image: mingc/android-build-box:1.29.0
       options: --user root
 
-    defaults:
-      run:
-        working-directory: todo
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,7 +66,7 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
             ~/.gradle/build-cache
-          key: gradle-${{ runner.os }}-${{ hashFiles('todo/gradle/wrapper/gradle-wrapper.properties', 'todo/gradle/libs.versions.toml') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 
@@ -95,8 +91,8 @@ jobs:
         with:
           name: lint-reports
           path: |
-            todo/app/build/reports/lint-results-*.html
-            todo/app/build/reports/lint-results-*.xml
+            app/build/reports/lint-results-*.html
+            app/build/reports/lint-results-*.xml
           retention-days: 14
 
       - name: Upload Detekt reports
@@ -104,7 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: detekt-reports
-          path: todo/**/build/reports/detekt/**/*
+          path: '**/build/reports/detekt/**/*'
           retention-days: 14
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -117,10 +113,6 @@ jobs:
     container:
       image: mingc/android-build-box:1.29.0
       options: --user root
-
-    defaults:
-      run:
-        working-directory: todo
 
     steps:
       - name: Checkout
@@ -138,7 +130,7 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
             ~/.gradle/build-cache
-          key: gradle-${{ runner.os }}-${{ hashFiles('todo/gradle/wrapper/gradle-wrapper.properties', 'todo/gradle/libs.versions.toml') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 
@@ -157,15 +149,15 @@ jobs:
         with:
           name: test-results
           path: |
-            todo/**/build/test-results/testDebugUnitTest/TEST-*.xml
-            todo/**/build/reports/tests/testDebugUnitTest/**/*
+            **/build/test-results/testDebugUnitTest/TEST-*.xml
+            **/build/reports/tests/testDebugUnitTest/**/*
           retention-days: 14
 
       - name: Publish test report summary
         if: always()
         uses: mikepenz/action-junit-report@v4
         with:
-          report_paths: 'todo/**/build/test-results/**/TEST-*.xml'
+          report_paths: '**/build/test-results/**/TEST-*.xml'
           check_name: 'Unit Test Results'
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -178,10 +170,6 @@ jobs:
     container:
       image: mingc/android-build-box:1.29.0
       options: --user root
-
-    defaults:
-      run:
-        working-directory: todo
 
     steps:
       - name: Checkout
@@ -199,7 +187,7 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
             ~/.gradle/build-cache
-          key: gradle-${{ runner.os }}-${{ hashFiles('todo/gradle/wrapper/gradle-wrapper.properties', 'todo/gradle/libs.versions.toml') }}
+          key: gradle-${{ runner.os }}-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
           restore-keys: |
             gradle-${{ runner.os }}-
 
@@ -269,14 +257,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apk-debug-${{ github.sha }}
-          path: todo/app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: apk-release-${{ github.sha }}
-          path: todo/app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/release/*.apk
           retention-days: 30
 
       - name: Cleanup Gradle daemons
