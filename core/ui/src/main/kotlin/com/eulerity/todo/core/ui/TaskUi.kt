@@ -1,6 +1,7 @@
 package com.eulerity.todo.core.ui
 
 import com.eulerity.todo.core.model.Task
+import com.eulerity.todo.core.model.TaskCategory
 import kotlinx.datetime.LocalTime
 
 /**
@@ -16,6 +17,10 @@ data class TaskUi(
     /** Formatted expiry string (e.g. "2:30 PM"), or null if no expiry is set. */
     val expiryLabel: String?,
     val isExpired: Boolean = false,
+    /** Raw expiry time, preserved so the edit sheet can pre-populate without re-parsing the label. */
+    val expiryTime: LocalTime? = null,
+    /** The category assigned to this task. */
+    val category: TaskCategory = TaskCategory.NONE,
 )
 
 /**
@@ -50,4 +55,6 @@ fun Task.asTaskUi(
     title = title,
     isCompleted = isCompleted,
     expiryLabel = expiryTime?.let(formatExpiry),
+    expiryTime = expiryTime,
+    category = category,
 )

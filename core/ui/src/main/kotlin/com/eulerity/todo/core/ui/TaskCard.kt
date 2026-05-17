@@ -1,6 +1,7 @@
 package com.eulerity.todo.core.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,8 +24,32 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import com.eulerity.todo.core.model.TaskCategory
 import com.eulerity.todo.core.designsystem.component.TodoCheckbox
 import com.eulerity.todo.core.designsystem.theme.TodoTheme
+
+
+/**
+ * Maps [TaskCategory.colorRole] to the current M3 color token.
+ * Called from composable scope only.
+ */
+@Composable
+private fun TaskCategory.resolveColor(): Color {
+    val s = androidx.compose.material3.MaterialTheme.colorScheme
+    return when (colorRole) {
+        "primary"            -> s.primary
+        "secondary"          -> s.secondary
+        "tertiary"           -> s.tertiary
+        "tertiaryContainer"  -> s.tertiaryContainer
+        "secondaryContainer" -> s.secondaryContainer
+        else                 -> Color.Transparent
+    }
+}
 
 /**
  * Stateless card row for a single task.
@@ -41,6 +66,7 @@ fun TaskCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
+    onEdit: (() -> Unit)? = null,
 ) {
     val isExpiredActive = task.isExpired && !task.isCompleted
     val titleColor by animateColorAsState(
@@ -66,6 +92,17 @@ fun TaskCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
+            // Spec C3: 4dp colored left indicator strip
+            if (task.category != TaskCategory.NONE) {
+                Box(
+                    modifier = Modifier
+                        .width(4.dp)
+                        .height(40.dp)
+                        .clip(MaterialTheme.shapes.extraSmall)
+                        .background(task.category.resolveColor()),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+            }
             TodoCheckbox(
                 checked = task.isCompleted,
                 onCheckedChange = if (readOnly) ({}) else onToggle,
@@ -74,7 +111,15 @@ fun TaskCard(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        if (onEdit != null && !readOnly)
+                            Modifier.clickable(onClick = onEdit)
+                        else Modifier
+                    ),
+            ) {
                 Text(
                     text = task.title,
                     style = MaterialTheme.typography.bodyLarge,
