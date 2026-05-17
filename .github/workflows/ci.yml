@@ -1,0 +1,286 @@
+# GitHub Actions CI/CD Pipeline — Eulerity Todo Android App
+# Mirrors the Bitbucket pipeline structure:
+#   Job 1: code-quality  → Spotless + Detekt + Android Lint
+#   Job 2: unit-tests    → Robolectric + JUnit unit tests
+#   Job 3: build-apks    → Debug APK + Release APK (unsigned) as artifacts
+#
+# Image: mingc/android-build-box:1.29.0 — same as Bitbucket reference pipeline.
+# Java: 17 (jenv global 17 equivalent via JAVA_HOME override).
+# Gradle: 9.1.0 (from gradle-wrapper.properties).
+# AGP:   9.0.1 (from libs.versions.toml).
+
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+
+# Cancel in-flight runs for the same PR / branch to save runner minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Point to the JDK 17 inside the build-box image.
+  JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+  # Gradle flags shared across all jobs.
+  GRADLE_OPTS: >-
+    -Dorg.gradle.jvmargs=-Xmx4g
+    -Dorg.gradle.daemon=false
+    -Dorg.gradle.parallel=true
+    -Dorg.gradle.caching=true
+    -Dkotlin.incremental=false
+
+# ──────────────────────────────────────────────────────────────────────────────
+# JOB 1 — Code Quality (Spotless + Detekt + Android Lint)
+# ──────────────────────────────────────────────────────────────────────────────
+jobs:
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    container:
+      image: mingc/android-build-box:1.29.0
+      options: --user root
+
+    defaults:
+      run:
+        working-directory: todo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Full history for accurate diff-based checks
+
+      - name: Setup Java 17
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          java -version
+
+      - name: Setup Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/build-cache
+          key: gradle-${{ runner.os }}-${{ hashFiles('todo/gradle/wrapper/gradle-wrapper.properties', 'todo/gradle/libs.versions.toml') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Spotless check (formatting)
+        run: ./gradlew spotlessCheck --build-cache --no-daemon --stacktrace
+
+      - name: Detekt (static analysis)
+        run: ./gradlew detekt --build-cache --no-daemon --stacktrace
+
+      - name: Android Lint
+        run: ./gradlew lintDebug --build-cache --no-daemon --stacktrace
+
+      - name: Upload Lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-reports
+          path: |
+            todo/app/build/reports/lint-results-*.html
+            todo/app/build/reports/lint-results-*.xml
+          retention-days: 14
+
+      - name: Upload Detekt reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detekt-reports
+          path: todo/**/build/reports/detekt/**/*
+          retention-days: 14
+
+# ──────────────────────────────────────────────────────────────────────────────
+# JOB 2 — Unit Tests
+# ──────────────────────────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: code-quality
+    container:
+      image: mingc/android-build-box:1.29.0
+      options: --user root
+
+    defaults:
+      run:
+        working-directory: todo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          java -version
+
+      - name: Setup Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/build-cache
+          key: gradle-${{ runner.os }}-${{ hashFiles('todo/gradle/wrapper/gradle-wrapper.properties', 'todo/gradle/libs.versions.toml') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --build-cache --no-daemon --stacktrace
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            todo/**/build/test-results/testDebugUnitTest/TEST-*.xml
+            todo/**/build/reports/tests/testDebugUnitTest/**/*
+          retention-days: 14
+
+      - name: Publish test report summary
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: 'todo/**/build/test-results/**/TEST-*.xml'
+          check_name: 'Unit Test Results'
+
+# ──────────────────────────────────────────────────────────────────────────────
+# JOB 3 — Build APKs
+# ──────────────────────────────────────────────────────────────────────────────
+  build-apks:
+    name: Build APKs
+    runs-on: ubuntu-latest
+    needs: [code-quality, unit-tests]
+    container:
+      image: mingc/android-build-box:1.29.0
+      options: --user root
+
+    defaults:
+      run:
+        working-directory: todo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        run: |
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          java -version
+
+      - name: Setup Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/build-cache
+          key: gradle-${{ runner.os }}-${{ hashFiles('todo/gradle/wrapper/gradle-wrapper.properties', 'todo/gradle/libs.versions.toml') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      # ── Keystore Setup (mirrors Bitbucket setup-keystore script) ─────────────
+      # Set the following repository secrets in GitHub → Settings → Secrets:
+      #   KEYSTORE_BASE64    base64-encoded .jks file
+      #   KEYSTORE_PASSWORD  store password
+      #   KEYSTORE_ALIAS     key alias (defaults to "upload-key")
+      #   KEY_PASSWORD       key password
+      - name: Setup release keystore
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          mkdir -p app/config/signing
+          echo "$KEYSTORE_BASE64" | base64 -d > app/config/signing/release-key.jks
+          cat > app/config/signing/keystore.properties <<EOF
+          storeFile=config/signing/release-key.jks
+          storePassword=${KEYSTORE_PASSWORD}
+          keyAlias=${KEYSTORE_ALIAS:-upload-key}
+          keyPassword=${KEY_PASSWORD}
+          EOF
+
+      # ── Debug APK (always) ───────────────────────────────────────────────────
+      - name: Build debug APK
+        run: |
+          ./gradlew assembleDebug \
+            --build-cache \
+            --no-daemon \
+            --stacktrace \
+            --parallel
+
+      # ── Release APK (signed when secrets present, unsigned otherwise) ────────
+      - name: Build release APK
+        run: |
+          ./gradlew assembleRelease \
+            --build-cache \
+            --no-daemon \
+            --stacktrace \
+            --parallel
+
+      - name: List built APKs
+        run: find app/build/outputs/apk -name "*.apk" -exec du -h {} \;
+
+      # ── Rename APKs with commit SHA for traceability ─────────────────────────
+      - name: Rename APKs with build metadata
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-8)
+          PR_OR_BRANCH="${{ github.event.pull_request.number || github.ref_name }}"
+          find app/build/outputs/apk -name "*.apk" | while read apk; do
+            dir=$(dirname "$apk")
+            base=$(basename "$apk" .apk)
+            mv "$apk" "${dir}/${base}-${PR_OR_BRANCH}-${SHORT_SHA}.apk" 2>/dev/null || true
+          done
+          find app/build/outputs/apk -name "*.apk" -exec echo "Built: {}" \;
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-debug-${{ github.sha }}
+          path: todo/app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-release-${{ github.sha }}
+          path: todo/app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: Cleanup Gradle daemons
+        if: always()
+        run: ./gradlew --stop || true
