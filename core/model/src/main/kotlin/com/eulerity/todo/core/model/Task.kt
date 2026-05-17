@@ -12,4 +12,5 @@ data class Task(
     val createdDate: LocalDate,
     val createdAt: Instant,
     val expiryTime: LocalTime?,
+    val category: TaskCategory = TaskCategory.NONE,
 )

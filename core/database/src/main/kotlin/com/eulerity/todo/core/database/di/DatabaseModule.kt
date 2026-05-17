@@ -21,7 +21,9 @@ object DatabaseModule {
             context,
             TodoDatabase::class.java,
             "todo.db",
-        ).build()
+        )
+            .addMigrations(TodoDatabase.MIGRATION_1_2)
+            .build()
 
     @Provides
     fun provideTaskDao(db: TodoDatabase): TaskDao = db.taskDao()

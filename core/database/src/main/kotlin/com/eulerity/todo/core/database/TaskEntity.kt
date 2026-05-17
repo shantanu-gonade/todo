@@ -14,4 +14,6 @@ data class TaskEntity(
     val createdDate: LocalDate,
     val createdAt: Instant,
     val expiryTime: LocalTime?,
+    /** Stored as enum name (e.g. "WORK"). Default "NONE" for pre-migration rows. */
+    val category: String = "NONE",
 )

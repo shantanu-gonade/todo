@@ -5,6 +5,7 @@ import com.eulerity.todo.core.data.model.asDomain
 import com.eulerity.todo.core.database.TaskDao
 import com.eulerity.todo.core.database.TaskEntity
 import com.eulerity.todo.core.model.Task
+import com.eulerity.todo.core.model.TaskCategory
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -33,7 +34,7 @@ class OfflineTaskRepository @Inject constructor(
             }
         }
 
-    override suspend fun addTask(title: String, expiryTime: LocalTime?) {
+    override suspend fun addTask(title: String, expiryTime: LocalTime?, category: TaskCategory) {
         taskDao.upsert(
             TaskEntity(
                 id = UUID.randomUUID().toString(),
@@ -42,9 +43,22 @@ class OfflineTaskRepository @Inject constructor(
                 createdDate = dateTimeProvider.today(),
                 createdAt = dateTimeProvider.now(),
                 expiryTime = expiryTime,
+                category = category.name,
             ),
         )
     }
+
+    override suspend fun updateTask(id: String, title: String, expiryTime: LocalTime?, category: TaskCategory) {
+        taskDao.updateTask(
+            id = id,
+            title = title.trim(),
+            expiryTime = expiryTime?.toSecondOfDay(),
+            category = category.name,
+        )
+    }
+
+    override suspend fun getTask(id: String): Task? =
+        taskDao.getById(id)?.asDomain()
 
     override suspend fun setCompleted(id: String, completed: Boolean) =
         taskDao.updateCompletion(id, completed)
