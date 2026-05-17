@@ -30,6 +30,7 @@ import androidx.lifecycle.flowWithLifecycle
 import com.eulerity.todo.core.designsystem.component.TodoEmptyState
 import com.eulerity.todo.core.designsystem.component.TodoTopAppBar
 import com.eulerity.todo.core.designsystem.theme.TodoTheme
+import com.eulerity.todo.core.model.TaskCategory
 import com.eulerity.todo.core.ui.TaskList
 import com.eulerity.todo.core.ui.TaskUi
 
@@ -113,6 +114,11 @@ fun TodayScreen(
     val onEdit: (id: String) -> Unit = remember(onIntent) {
         { id -> onIntent(TodayIntent.EditTaskClicked(id)) }
     }
+    // D1: dropping a task card onto a category section moves it there
+    val onCategoryDrop: (taskId: String, category: TaskCategory) -> Unit =
+        remember(onIntent) {
+            { taskId, category -> onIntent(TodayIntent.TaskDroppedToCategory(taskId, category)) }
+        }
 
     Scaffold(
         modifier = modifier,
@@ -158,6 +164,10 @@ fun TodayScreen(
                     onToggle = onToggle,
                     onDelete = onDelete,
                     onEdit = onEdit,
+                    onCategoryDrop = onCategoryDrop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .align(Alignment.TopStart),
                 )
             }
         }

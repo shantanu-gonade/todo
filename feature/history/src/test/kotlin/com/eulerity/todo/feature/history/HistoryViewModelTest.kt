@@ -7,6 +7,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -25,7 +26,7 @@ class HistoryViewModelTest {
     }
 
     @Test
-    fun `uiState maps expired tasks to TaskUi and clears isLoading`() = runTest {
+    fun `uiState maps expired tasks to TaskUi grouped by date and clears isLoading`() = runTest {
         val vm = HistoryViewModel(
             observeExpiredTasks = FakeObserveExpiredTasks(count = 2),
         )
@@ -35,15 +36,18 @@ class HistoryViewModelTest {
             val state = if (first.isLoading) awaitItem() else first
 
             assertFalse("isLoading should be false after first domain emission", state.isLoading)
-            assertEquals(2, state.tasks.size)
-            assertEquals("Expired Task 1", state.tasks[0].title)
-            assertEquals("Expired Task 2", state.tasks[1].title)
+            // All fake tasks share the same date — expect 1 date group with 2 tasks.
+            assertEquals(1, state.tasksByDate.size)
+            val (_, tasks) = state.tasksByDate.first()
+            assertEquals(2, tasks.size)
+            assertEquals("Expired Task 1", tasks[0].title)
+            assertEquals("Expired Task 2", tasks[1].title)
             cancelAndConsumeRemainingEvents()
         }
     }
 
     @Test
-    fun `empty expired list yields empty tasks and isLoading false`() = runTest {
+    fun `empty expired list yields empty tasksByDate and isLoading false`() = runTest {
         val vm = HistoryViewModel(
             observeExpiredTasks = FakeObserveExpiredTasks(count = 0),
         )
@@ -52,7 +56,7 @@ class HistoryViewModelTest {
             val state = if (first.isLoading) awaitItem() else first
 
             assertFalse(state.isLoading)
-            assertEquals(0, state.tasks.size)
+            assertTrue(state.isEmpty)
             cancelAndConsumeRemainingEvents()
         }
     }
@@ -66,7 +70,7 @@ class HistoryViewModelTest {
             // First emission: empty list
             val first = awaitItem()
             val empty = if (first.isLoading) awaitItem() else first
-            assertEquals(0, empty.tasks.size)
+            assertTrue(empty.isEmpty)
 
             // Push a new task into the repository
             repo.tasksFlow.value = listOf(
@@ -82,8 +86,48 @@ class HistoryViewModelTest {
 
             val updated = awaitItem()
             assertFalse(updated.isLoading)
-            assertEquals(1, updated.tasks.size)
-            assertEquals("New Expired", updated.tasks[0].title)
+            assertEquals(1, updated.tasksByDate.size)
+            assertEquals("New Expired", updated.tasksByDate.first().second.first().title)
+            cancelAndConsumeRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `tasks are sorted by date descending with most recent group first`() = runTest {
+        val olderDate = LocalDate(2026, 5, 14)
+        val newerDate = LocalDate(2026, 5, 16)
+        val (useCase, repo) = FakeObserveExpiredTasksWithRepo()
+        val vm = HistoryViewModel(observeExpiredTasks = useCase)
+
+        vm.uiState.test {
+            val first = awaitItem()
+            if (first.isLoading) awaitItem() // drain loading state
+
+            repo.tasksFlow.value = listOf(
+                Task(
+                    id = "old",
+                    title = "Older task",
+                    isCompleted = false,
+                    createdDate = olderDate,
+                    createdAt = Instant.fromEpochSeconds(100),
+                    expiryTime = null,
+                ),
+                Task(
+                    id = "new",
+                    title = "Newer task",
+                    isCompleted = false,
+                    createdDate = newerDate,
+                    createdAt = Instant.fromEpochSeconds(200),
+                    expiryTime = null,
+                ),
+            )
+
+            val state = awaitItem()
+            assertFalse(state.isLoading)
+            assertEquals(2, state.tasksByDate.size)
+            // Most recent date first
+            assertEquals(newerDate, state.tasksByDate[0].first)
+            assertEquals(olderDate, state.tasksByDate[1].first)
             cancelAndConsumeRemainingEvents()
         }
     }

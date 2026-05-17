@@ -2,6 +2,7 @@ package com.eulerity.todo.core.data
 
 import com.eulerity.todo.core.common.DateTimeProvider
 import com.eulerity.todo.core.data.model.asDomain
+import com.eulerity.todo.core.data.notification.TaskExpiryScheduler
 import com.eulerity.todo.core.database.TaskDao
 import com.eulerity.todo.core.database.TaskEntity
 import com.eulerity.todo.core.model.Task
@@ -18,6 +19,7 @@ import javax.inject.Inject
 class OfflineTaskRepository @Inject constructor(
     private val taskDao: TaskDao,
     private val dateTimeProvider: DateTimeProvider,
+    private val expiryScheduler: TaskExpiryScheduler,
 ) : TaskRepository {
 
     override fun observeTodaysTasks(): Flow<List<Task>> =
@@ -35,10 +37,12 @@ class OfflineTaskRepository @Inject constructor(
         }
 
     override suspend fun addTask(title: String, expiryTime: LocalTime?, category: TaskCategory) {
+        val id = UUID.randomUUID().toString()
+        val trimmedTitle = title.trim()
         taskDao.upsert(
             TaskEntity(
-                id = UUID.randomUUID().toString(),
-                title = title.trim(),
+                id = id,
+                title = trimmedTitle,
                 isCompleted = false,
                 createdDate = dateTimeProvider.today(),
                 createdAt = dateTimeProvider.now(),
@@ -46,22 +50,38 @@ class OfflineTaskRepository @Inject constructor(
                 category = category.name,
             ),
         )
+        // Schedule exact notification if this task has an expiry time today
+        if (expiryTime != null) {
+            expiryScheduler.schedule(id, trimmedTitle, expiryTime)
+        }
     }
 
     override suspend fun updateTask(id: String, title: String, expiryTime: LocalTime?, category: TaskCategory) {
+        val trimmedTitle = title.trim()
         taskDao.updateTask(
             id = id,
-            title = title.trim(),
+            title = trimmedTitle,
             expiryTime = expiryTime?.toSecondOfDay(),
             category = category.name,
         )
+        // Always cancel any existing alarm, then re-schedule if there's still an expiry.
+        expiryScheduler.cancel(id)
+        if (expiryTime != null) {
+            expiryScheduler.schedule(id, trimmedTitle, expiryTime)
+        }
     }
 
     override suspend fun getTask(id: String): Task? =
         taskDao.getById(id)?.asDomain()
 
-    override suspend fun setCompleted(id: String, completed: Boolean) =
+    override suspend fun setCompleted(id: String, completed: Boolean) {
         taskDao.updateCompletion(id, completed)
+        // Cancel the expiry alarm once a task is completed — no longer relevant.
+        if (completed) expiryScheduler.cancel(id)
+    }
 
-    override suspend fun deleteTask(id: String) = taskDao.deleteById(id)
+    override suspend fun deleteTask(id: String) {
+        expiryScheduler.cancel(id)
+        taskDao.deleteById(id)
+    }
 }

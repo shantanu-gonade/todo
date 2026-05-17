@@ -5,6 +5,9 @@
     <!-- Required on API 33+ to post notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Required to schedule exact per-task expiry alarms (API 31+) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
     <!-- No INTERNET permission — this app is fully offline -->
 
     <application
@@ -27,6 +30,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Receives AlarmManager broadcasts for per-task expiry notifications -->
+        <receiver
+            android:name="com.eulerity.todo.core.data.notification.TaskExpiryReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.eulerity.todo.ACTION_TASK_EXPIRED" />
+            </intent-filter>
+        </receiver>
 
         <!--
             Remove the default WorkManager initializer so our custom

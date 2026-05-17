@@ -2,6 +2,8 @@ package com.eulerity.todo.core.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,8 +24,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -32,18 +45,16 @@ import com.eulerity.todo.core.model.TaskCategory
 /**
  * Stateless lazy list of [TaskCard]s.
  *
- * When tasks span 2 or more distinct categories the list groups them by category
- * with sticky section headers (spec C6). Tasks with [TaskCategory.NONE] appear last
- * under an "Uncategorized" header. If all tasks share one category the list renders
- * flat with no headers.
+ * When tasks span 2+ distinct categories the list groups them by category with sticky
+ * section headers (spec C6). Within the grouped layout, long-press + drag moves a
+ * task to a different category section ([onCategoryDrop]).
+ * Tasks with [TaskCategory.NONE] appear last under "Uncategorized".
+ * If all tasks share one category the list renders flat with no headers or drag support.
  *
- * Compose rule 5: typed, stable callbacks — the screen above passes a single
- * stable lambda reference per action. Inside the [items] block we build the
- * per-item lambdas by capturing only [id] from the item, so the screen-level
- * callbacks are not re-allocated per frame.
- *
- * [key] is set to [TaskUi.id] so Compose can correctly animate insertions,
- * deletions, and reorders without re-composing the whole list.
+ * @param onCategoryDrop Called when a task is dragged and dropped onto a different
+ *   category section. Only fired in the grouped layout and only when the target
+ *   category differs from the task's current category. No-op lambda by default so
+ *   callers that don't need drag (e.g. History) can ignore it.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -55,8 +66,8 @@ fun TaskList(
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
     readOnly: Boolean = false,
     onEdit: ((id: String) -> Unit)? = null,
+    onCategoryDrop: ((taskId: String, category: TaskCategory) -> Unit)? = null,
 ) {
-    // Spec C6: group by category only when 2+ distinct categories are present.
     val distinctCategories = tasks.map { it.category }.toSet()
     val useGroupedLayout = distinctCategories.size >= 2
 
@@ -69,6 +80,7 @@ fun TaskList(
             contentPadding = contentPadding,
             readOnly = readOnly,
             onEdit = onEdit,
+            onCategoryDrop = onCategoryDrop,
         )
     } else {
         FlatTaskList(
@@ -87,10 +99,6 @@ fun TaskList(
 // Private helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Flat list — all tasks share one category (or the list is empty).
- * Identical to the original implementation.
- */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun FlatTaskList(
@@ -125,10 +133,20 @@ private fun FlatTaskList(
 }
 
 /**
- * Grouped list with sticky section headers (spec C6).
+ * Drag state for the grouped list. Tracks the task being dragged and its
+ * current drag offset in window coordinates.
+ */
+private data class DragState(
+    val taskId: String,
+    val currentOffset: Offset,
+)
+
+/**
+ * Grouped list with sticky section headers (spec C6) and long-press drag-to-move.
  *
- * Group order: non-NONE categories in [TaskCategory] declaration order, then
- * NONE tasks collected at the bottom under "Uncategorized".
+ * Each category section header registers its position so drag-drop can determine
+ * which section the user dropped the card into. The dragged card is lifted visually
+ * (graphicsLayer scale + alpha) while a ghost placeholder remains in place.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -140,27 +158,59 @@ private fun GroupedTaskList(
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
     readOnly: Boolean = false,
     onEdit: ((id: String) -> Unit)? = null,
+    onCategoryDrop: ((taskId: String, category: TaskCategory) -> Unit)? = null,
 ) {
-    // Stable enum declaration order; NONE goes to the back.
     val categoryOrder = TaskCategory.entries.filter { it != TaskCategory.NONE } + listOf(TaskCategory.NONE)
-
-    // Build sections: only include categories that actually have tasks.
     val grouped: List<Pair<TaskCategory, List<TaskUi>>> = categoryOrder
         .mapNotNull { cat ->
             val group = tasks.filter { it.category == cat }
             if (group.isEmpty()) null else cat to group
         }
 
+    // Track where each category section header sits in window coordinates (top-Y).
+    val sectionTopMap = remember { mutableMapOf<TaskCategory, Float>() }
+
+    var dragState by remember { mutableStateOf<DragState?>(null) }
+
+    // Compute drop-target status for every category in composable scope (before LazyColumn)
+    // so we avoid calling remember/derivedStateOf inside the non-composable LazyListScope.forEach.
+    val dropTargets: Map<TaskCategory, Boolean> by remember(dragState, categoryOrder) {
+        derivedStateOf {
+            if (dragState == null || onCategoryDrop == null) {
+                emptyMap()
+            } else {
+                val dragY = dragState!!.currentOffset.y
+                categoryOrder.associateWith { cat ->
+                    val thisTop = sectionTopMap[cat] ?: return@associateWith false
+                    val nextTop = categoryOrder
+                        .dropWhile { it != cat }
+                        .drop(1)
+                        .firstNotNullOfOrNull { sectionTopMap[it] }
+                        ?: Float.MAX_VALUE
+                    dragY in thisTop..nextTop
+                }
+            }
+        }
+    }
+
     LazyColumn(
         modifier = modifier,
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(8.dp),
+        state = rememberLazyListState(),
     ) {
         grouped.forEach { (category, group) ->
-            // Sticky header — "Uncategorized" label for NONE tasks.
             val headerLabel = if (category == TaskCategory.NONE) "Uncategorized" else category.label
+            val isDropTarget = dropTargets[category] ?: false
+
             stickyHeader(key = "header_${category.name}", contentType = "header") {
-                CategorySectionHeader(label = headerLabel)
+                CategorySectionHeader(
+                    label = headerLabel,
+                    isDropTarget = isDropTarget,
+                    modifier = Modifier.onGloballyPositioned { coords ->
+                        sectionTopMap[category] = coords.positionInWindow().y
+                    },
+                )
             }
 
             items(
@@ -168,12 +218,42 @@ private fun GroupedTaskList(
                 key = { it.id },
                 contentType = { "task" },
             ) { task ->
-                TaskRow(
+                val isDragging = dragState?.taskId == task.id
+
+                DraggableTaskRow(
                     task = task,
                     onToggle = onToggle,
                     onDelete = onDelete,
                     readOnly = readOnly,
                     onEdit = onEdit,
+                    isDragging = isDragging,
+                    onDragStart = { offset ->
+                        dragState = DragState(taskId = task.id, currentOffset = offset)
+                    },
+                    onDragMove = { delta ->
+                        dragState = dragState?.copy(
+                            currentOffset = dragState!!.currentOffset + delta,
+                        )
+                    },
+                    onDragEnd = {
+                        val state = dragState
+                        if (state != null && onCategoryDrop != null) {
+                            val dragY = state.currentOffset.y
+                            val targetCategory = categoryOrder.firstOrNull { cat ->
+                                val top = sectionTopMap[cat] ?: return@firstOrNull false
+                                val nextTop = categoryOrder
+                                    .dropWhile { it != cat }
+                                    .drop(1)
+                                    .firstNotNullOfOrNull { sectionTopMap[it] }
+                                    ?: Float.MAX_VALUE
+                                dragY in top..nextTop
+                            }
+                            if (targetCategory != null && targetCategory != task.category) {
+                                onCategoryDrop(task.id, targetCategory)
+                            }
+                        }
+                        dragState = null
+                    },
                     modifier = Modifier.animateItem(),
                 )
             }
@@ -181,19 +261,98 @@ private fun GroupedTaskList(
     }
 }
 
-/** Sticky section header composable for a category group. */
+/** Sticky section header — highlighted when a card is dragged over it. */
 @Composable
-private fun CategorySectionHeader(label: String) {
+private fun CategorySectionHeader(
+    label: String,
+    modifier: Modifier = Modifier,
+    isDropTarget: Boolean = false,
+) {
+    val borderColor = if (isDropTarget) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
     Text(
         text = label,
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier
+        color = if (isDropTarget) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
+            .then(
+                if (isDropTarget) Modifier.border(
+                    width = 2.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = MaterialTheme.shapes.small,
+                ) else Modifier
+            )
             .padding(horizontal = 4.dp, vertical = 6.dp),
     )
+}
+
+/**
+ * A draggable version of [TaskRow]. Long-press activates drag; release fires [onDragEnd].
+ * While dragging, the card is rendered with reduced alpha and a slight scale-up so it
+ * appears "lifted". When [isDragging] is true a semi-transparent ghost renders underneath.
+ *
+ * Coordinate space: [onDragStart] receives a local touch offset (relative to this composable).
+ * We combine it with the card's own window position (tracked via [onGloballyPositioned]) to
+ * seed [DragState.currentOffset] in window coordinate space — the same space used by
+ * [sectionTopMap] — so drag-Y comparisons against section tops work correctly.
+ */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun DraggableTaskRow(
+    task: TaskUi,
+    onToggle: (id: String, checked: Boolean) -> Unit,
+    onDelete: (id: String) -> Unit,
+    readOnly: Boolean,
+    onEdit: ((id: String) -> Unit)?,
+    isDragging: Boolean,
+    onDragStart: (Offset) -> Unit,
+    onDragMove: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Track this card's top-left corner in window coordinates so we can translate
+    // the local touch offset into the window coordinate space expected by sectionTopMap.
+    var cardWindowPosition by remember { mutableStateOf(Offset.Zero) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { coords ->
+                val pos = coords.positionInWindow()
+                cardWindowPosition = Offset(pos.x, pos.y)
+            }
+            .pointerInput(task.id) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { localOffset ->
+                        // Convert local touch offset to window space by adding the card's
+                        // window position. This keeps DragState.currentOffset in the same
+                        // coordinate space as sectionTopMap entries.
+                        onDragStart(cardWindowPosition + localOffset)
+                    },
+                    onDrag = { _, dragAmount -> onDragMove(dragAmount) },
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragEnd() },
+                )
+            }
+            .graphicsLayer {
+                if (isDragging) {
+                    scaleX = 1.04f
+                    scaleY = 1.04f
+                    alpha = 0.85f
+                    shadowElevation = 8.dp.toPx()
+                }
+            },
+    ) {
+        TaskRow(
+            task = task,
+            onToggle = onToggle,
+            onDelete = onDelete,
+            readOnly = readOnly,
+            onEdit = onEdit,
+        )
+    }
 }
 
 /** A single row in the list — handles both readOnly and swipe-to-dismiss modes. */
@@ -208,7 +367,6 @@ private fun TaskRow(
     modifier: Modifier = Modifier,
 ) {
     if (readOnly) {
-        // History: read-only cards, no swipe gesture
         TaskCard(
             task = task,
             onToggle = { checked -> onToggle(task.id, checked) },
@@ -217,7 +375,6 @@ private fun TaskRow(
             readOnly = true,
         )
     } else {
-        // Today: swipe-left to delete
         val dismissState = rememberSwipeToDismissBoxState(
             confirmValueChange = { value ->
                 if (value == SwipeToDismissBoxValue.EndToStart) {
@@ -226,12 +383,16 @@ private fun TaskRow(
                 } else false
             },
         )
-        // Reset if the item wasn't removed (e.g. reactive list didn't update)
         LaunchedEffect(task.id) {
             if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
                 dismissState.reset()
             }
         }
+
+        val isSwiping by remember {
+            derivedStateOf { dismissState.targetValue == SwipeToDismissBoxValue.EndToStart }
+        }
+
         SwipeToDismissBox(
             state = dismissState,
             enableDismissFromStartToEnd = false,
@@ -260,12 +421,12 @@ private fun TaskRow(
                 onToggle = { checked -> onToggle(task.id, checked) },
                 onDelete = { onDelete(task.id) },
                 onEdit = onEdit?.let { cb -> { cb(task.id) } },
+                showDeleteButton = !isSwiping,
             )
         }
     }
 }
 
-// Compose rule 7: @Preview wraps in TodoTheme
 @Preview(showBackground = true, name = "TaskList — Mixed")
 @Composable
 private fun TaskListPreview() {

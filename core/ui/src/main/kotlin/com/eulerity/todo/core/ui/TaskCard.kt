@@ -58,6 +58,10 @@ private fun TaskCategory.resolveColor(): Color {
  * reference, no side effects. Correct by construction.
  *
  * Layout: [TodoCheckbox] | title + optional expiry label | delete [IconButton]
+ *
+ * @param showDeleteButton When false the delete button is hidden even if readOnly=false.
+ *   Used by [TaskRow] to hide the in-card button during swipe-to-dismiss so the
+ *   swipe background's delete icon is the only affordance shown.
  */
 @Composable
 fun TaskCard(
@@ -67,6 +71,7 @@ fun TaskCard(
     modifier: Modifier = Modifier,
     readOnly: Boolean = false,
     onEdit: (() -> Unit)? = null,
+    showDeleteButton: Boolean = true,
 ) {
     val isExpiredActive = task.isExpired && !task.isCompleted
     val titleColor by animateColorAsState(
@@ -90,7 +95,6 @@ fun TaskCard(
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             // Spec C3: 4dp colored left indicator strip
             if (task.category != TaskCategory.NONE) {
@@ -143,7 +147,10 @@ fun TaskCard(
                 }
             }
 
-            if (!readOnly) {
+            // Only show the in-card delete button when not swiping (showDeleteButton=true)
+            // and the card is not read-only. During swipe-to-dismiss the background
+            // already reveals a delete icon so rendering the button here causes overlap.
+            if (!readOnly && showDeleteButton) {
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,

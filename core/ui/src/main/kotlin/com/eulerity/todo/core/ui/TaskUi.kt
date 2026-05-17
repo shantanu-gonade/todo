@@ -2,6 +2,7 @@ package com.eulerity.todo.core.ui
 
 import com.eulerity.todo.core.model.Task
 import com.eulerity.todo.core.model.TaskCategory
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
 
 /**
@@ -21,6 +22,8 @@ data class TaskUi(
     val expiryTime: LocalTime? = null,
     /** The category assigned to this task. */
     val category: TaskCategory = TaskCategory.NONE,
+    /** The date this task was created; used for grouping in the History screen. */
+    val createdDate: LocalDate? = null,
 )
 
 /**
@@ -57,4 +60,5 @@ fun Task.asTaskUi(
     expiryLabel = expiryTime?.let(formatExpiry),
     expiryTime = expiryTime,
     category = category,
+    createdDate = createdDate,
 )

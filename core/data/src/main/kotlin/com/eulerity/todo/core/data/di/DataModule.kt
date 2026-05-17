@@ -4,6 +4,8 @@ import com.eulerity.todo.core.data.OfflineFirstUserDataRepository
 import com.eulerity.todo.core.data.OfflineTaskRepository
 import com.eulerity.todo.core.data.TaskRepository
 import com.eulerity.todo.core.data.UserDataRepository
+import com.eulerity.todo.core.data.notification.AlarmManagerTaskExpiryScheduler
+import com.eulerity.todo.core.data.notification.TaskExpiryScheduler
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -20,4 +22,8 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindUserDataRepository(impl: OfflineFirstUserDataRepository): UserDataRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTaskExpiryScheduler(impl: AlarmManagerTaskExpiryScheduler): TaskExpiryScheduler
 }

@@ -19,7 +19,7 @@ class OfflineTaskRepositoryTest {
     fun `a task added today disappears from today and appears in history tomorrow`() = runTest {
         val dao = FakeTaskDao()
         val dateTimeProvider = FakeDateTimeProvider(FakeClock(LocalDate(2026, 5, 14)))
-        val repo = OfflineTaskRepository(dao, dateTimeProvider)
+        val repo = OfflineTaskRepository(dao, dateTimeProvider, FakeTaskExpiryScheduler())
 
         repo.addTask("ship the build", expiryTime = null)
 
@@ -40,7 +40,7 @@ class OfflineTaskRepositoryTest {
     fun `setCompleted toggles the completion flag`() = runTest {
         val dao = FakeTaskDao()
         val dateTimeProvider = FakeDateTimeProvider(FakeClock(LocalDate(2026, 5, 14)))
-        val repo = OfflineTaskRepository(dao, dateTimeProvider)
+        val repo = OfflineTaskRepository(dao, dateTimeProvider, FakeTaskExpiryScheduler())
 
         repo.addTask("buy milk", expiryTime = null)
 
@@ -64,7 +64,7 @@ class OfflineTaskRepositoryTest {
     fun `deleteTask removes the task`() = runTest {
         val dao = FakeTaskDao()
         val dateTimeProvider = FakeDateTimeProvider(FakeClock(LocalDate(2026, 5, 14)))
-        val repo = OfflineTaskRepository(dao, dateTimeProvider)
+        val repo = OfflineTaskRepository(dao, dateTimeProvider, FakeTaskExpiryScheduler())
 
         repo.addTask("to delete", expiryTime = null)
 

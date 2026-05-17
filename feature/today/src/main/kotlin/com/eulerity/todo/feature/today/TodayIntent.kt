@@ -39,4 +39,10 @@ sealed interface TodayIntent {
 
     /** User tapped the delete icon on a task row. */
     data class DeleteTask(val id: String) : TodayIntent
+
+    /**
+     * User dragged a task card and dropped it onto a different category section.
+     * The ViewModel will call [UpdateTaskUseCase] to persist the new category.
+     */
+    data class TaskDroppedToCategory(val taskId: String, val newCategory: TaskCategory) : TodayIntent
 }

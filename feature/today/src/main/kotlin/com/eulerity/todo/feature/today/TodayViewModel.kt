@@ -118,6 +118,9 @@ class TodayViewModel @Inject constructor(
 
             is TodayIntent.DeleteTask ->
                 viewModelScope.launch { deleteTask(intent.id) }
+
+            is TodayIntent.TaskDroppedToCategory ->
+                moveTaskToCategory(intent.taskId, intent.newCategory)
         }
     }
 
@@ -157,6 +160,15 @@ class TodayViewModel @Inject constructor(
                 localState.update { it.copy(validationError = e.message ?: "Invalid task") }
             }
     }
+
+    private fun moveTaskToCategory(taskId: String, newCategory: TaskCategory) =
+        viewModelScope.launch {
+            val task = uiState.value.tasks.find { it.id == taskId } ?: return@launch
+            updateTask(taskId, task.title, task.expiryTime, newCategory)
+                .onFailure { e ->
+                    effectChannel.send(TodayEffect.ShowError(e.message ?: "Failed to move task"))
+                }
+        }
 
     private fun toggle(id: String) = viewModelScope.launch {
         val current = uiState.value.tasks.find { it.id == id }?.isCompleted ?: false
