@@ -1,7 +1,18 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.todoapp.android.application)
     alias(libs.plugins.todoapp.android.application.compose)
     alias(libs.plugins.todoapp.android.hilt)
+}
+
+// Load keystore credentials from local keystore.properties (not committed).
+// In CI, the workflow writes this file from GitHub Secrets before invoking Gradle.
+val keystorePropertiesFile = rootProject.file("app/config/signing/keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        load(keystorePropertiesFile.inputStream())
+    }
 }
 
 android {
@@ -12,6 +23,20 @@ android {
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+
+    signingConfigs {
+        create("release") {
+            // When keystore.properties exists (local dev or CI with secrets), use it.
+            // Otherwise the release APK will be unsigned (safe for CI artifact upload).
+            if (keystorePropertiesFile.exists()) {
+                storeFile = rootProject.file("app/${keystoreProperties["storeFile"]}")
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -20,6 +45,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Use the release signing config when credentials are available.
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }
