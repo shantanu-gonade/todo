@@ -35,4 +35,14 @@ class FakeTaskDao : TaskDao {
     override suspend fun deleteById(id: String) {
         tasks.value = tasks.value.filterNot { it.id == id }
     }
+
+    override suspend fun getById(id: String): TaskEntity? =
+        tasks.value.find { it.id == id }
+
+    override suspend fun updateTask(id: String, title: String, expiryTime: Int?, category: String) {
+        tasks.value = tasks.value.map { task ->
+            if (task.id == id) task.copy(title = title, expiryTime = null, category = category)
+            else task
+        }
+    }
 }

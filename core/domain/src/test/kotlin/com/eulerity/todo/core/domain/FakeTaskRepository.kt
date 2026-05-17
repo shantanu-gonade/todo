@@ -2,6 +2,7 @@ package com.eulerity.todo.core.domain
 
 import com.eulerity.todo.core.data.TaskRepository
 import com.eulerity.todo.core.model.Task
+import com.eulerity.todo.core.model.TaskCategory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.datetime.LocalTime
@@ -22,9 +23,13 @@ class FakeTaskRepository : TaskRepository {
     override fun observeTodaysTasks(): Flow<List<Task>> = todaysTasks
     override fun observeExpiredTasks(): Flow<List<Task>> = expiredTasks
 
-    override suspend fun addTask(title: String, expiryTime: LocalTime?) {
+    override suspend fun addTask(title: String, expiryTime: LocalTime?, category: TaskCategory) {
         added.add(title to expiryTime)
     }
+
+    override suspend fun updateTask(id: String, title: String, expiryTime: LocalTime?, category: TaskCategory) {}
+
+    override suspend fun getTask(id: String): Task? = null
 
     override suspend fun setCompleted(id: String, completed: Boolean) {
         toggled.add(id to completed)

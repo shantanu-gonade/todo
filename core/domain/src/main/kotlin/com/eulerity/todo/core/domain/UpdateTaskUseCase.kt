@@ -8,25 +8,28 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import javax.inject.Inject
 
-class AddTaskUseCase @Inject constructor(
+/**
+ * Updates an existing task's title, expiry time, and category.
+ *
+ * Applies the same validation rules as [AddTaskUseCase]:
+ * - title must not be blank
+ * - expiry time, if provided, must not already be in the past
+ *
+ * Returns [Result.failure] with a human-readable message on validation error.
+ */
+class UpdateTaskUseCase @Inject constructor(
     private val repository: TaskRepository,
     private val dateTimeProvider: DateTimeProvider,
 ) {
-    /**
-     * Validates and persists a new task.
-     *
-     * @param category The category to assign to the task. Defaults to [TaskCategory.NONE]
-     *                 so callers that do not use categories need no change.
-     */
     suspend operator fun invoke(
+        id: String,
         title: String,
         expiryTime: LocalTime?,
-        category: TaskCategory = TaskCategory.NONE,
+        category: TaskCategory,
     ): Result<Unit> {
         if (title.isBlank()) {
             return Result.failure(IllegalArgumentException("Title can't be empty"))
         }
-        // Reject an expiry time already in the past for today.
         if (expiryTime != null) {
             val nowLocalTime = dateTimeProvider.now()
                 .toLocalDateTime(TimeZone.currentSystemDefault())
@@ -37,6 +40,6 @@ class AddTaskUseCase @Inject constructor(
                 )
             }
         }
-        return runCatching { repository.addTask(title.trim(), expiryTime, category) }
+        return runCatching { repository.updateTask(id, title.trim(), expiryTime, category) }
     }
 }
