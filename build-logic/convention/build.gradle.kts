@@ -9,6 +9,8 @@ dependencies {
     compileOnly(libs.kotlin.gradlePlugin)
     compileOnly(libs.ksp.gradlePlugin)
     compileOnly(libs.room.gradlePlugin)
+    compileOnly(libs.spotless.gradlePlugin)
+    compileOnly(libs.detekt.gradlePlugin)
 }
 
 gradlePlugin {
@@ -48,6 +50,14 @@ gradlePlugin {
         register("androidTest") {
             id = "todoapp.android.test"
             implementationClass = "AndroidTestConventionPlugin"
+        }
+        register("spotless") {
+            id = "todoapp.spotless"
+            implementationClass = "SpotlessConventionPlugin"
+        }
+        register("detekt") {
+            id = "todoapp.detekt"
+            implementationClass = "DetektConventionPlugin"
         }
     }
 }

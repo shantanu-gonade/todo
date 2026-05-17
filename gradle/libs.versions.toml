@@ -1,6 +1,8 @@
 [versions]
 agp = "9.0.1"
 kotlin = "2.1.0"
+spotless = "7.0.4"
+detekt = "1.23.8"
 ksp = "2.1.0-1.0.29"
 coreKtx = "1.15.0"
 lifecycle = "2.8.7"
@@ -70,8 +72,12 @@ android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", ver
 kotlin-gradlePlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
 room-gradlePlugin = { group = "androidx.room", name = "room-gradle-plugin", version.ref = "room" }
+spotless-gradlePlugin = { group = "com.diffplug.spotless", name = "spotless-plugin-gradle", version.ref = "spotless" }
+detekt-gradlePlugin = { group = "io.gitlab.arturbosch.detekt", name = "detekt-gradle-plugin", version.ref = "detekt" }
 
 [plugins]
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -82,6 +88,8 @@ hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 room = { id = "androidx.room", version.ref = "room" }
 
 # Convention plugins defined in build-logic
+todoapp-spotless = { id = "todoapp.spotless" }
+todoapp-detekt = { id = "todoapp.detekt" }
 todoapp-android-application = { id = "todoapp.android.application" }
 todoapp-android-application-compose = { id = "todoapp.android.application.compose" }
 todoapp-android-library = { id = "todoapp.android.library" }
