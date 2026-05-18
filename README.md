@@ -9,6 +9,8 @@ and a reactive day-reset mechanism that requires no background jobs.
 
 ## Demo Video
 
+https://github.com/user-attachments/assets/fbdebc49-4368-4c15-b1ea-ee9a4ef50c45
+
 ---
 
 ## Features
